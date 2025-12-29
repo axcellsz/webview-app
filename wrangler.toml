@@ -5,7 +5,7 @@ workers_dev = true
 compatibility_date = "2024-01-01"
 
 kv_namespaces = [
-  { binding = "DATA_HUTANG_WEBVIEW", id = "8f1f653045574e5bae3b0ef0aca0d7b0" }
+  { binding = "HUTANG_KV", id = "8f1f653045574e5bae3b0ef0aca0d7b0" }
 ]
 
 [assets]
