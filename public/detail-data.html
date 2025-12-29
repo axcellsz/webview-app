@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Detail Hutang</title>
+
   <style>
     :root{
       --bg:#0b1220;
@@ -12,7 +13,6 @@
       --text:#eaf0ff;
       --muted: rgba(234,240,255,.68);
 
-      --blue:#1e88e5;
       --green:#63f29a;
       --red:#ff7a8f;
 
@@ -22,51 +22,78 @@
     }
 
     *{ box-sizing:border-box; }
-    body{
+
+    html, body{
       margin:0;
+      padding:0;
+    }
+
+    body{
       font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
       background: var(--bg);
       color: var(--text);
     }
 
+    /* ===== TOPBAR (FIXED FULL WIDTH) ===== */
     .topbar{
-  position: fixed;
-  top: 0;
-  z-index: 10;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: 100vw;
+      z-index: 1000;
 
-  background: linear-gradient(
-    180deg,
-    rgba(18,26,41,.98),
-    rgba(18,26,41,.92)
-  );
+      background: linear-gradient(
+        180deg,
+        rgba(18,26,41,.98),
+        rgba(18,26,41,.92)
+      );
 
-  color: #fff;
-  padding: 12px;
+      color:#fff;
+      padding: 12px;
 
-  display: flex;
-  align-items: center;
-  gap: 10px;
+      display:flex;
+      align-items:center;
+      gap:10px;
 
-  box-shadow: 0 10px 24px rgba(0,0,0,.25);
-}
-    
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+    }
+
     .avatar{
-      width:40px;height:40px;border-radius:999px;
+      width:40px;
+      height:40px;
+      border-radius:999px;
       background: rgba(255,255,255,.18);
-      display:grid;place-items:center;
+      display:grid;
+      place-items:center;
       font-weight:900;
       flex:0 0 auto;
     }
-    .titleWrap{ min-width:0; line-height:1.1; }
-    .name{ margin:0; font-size:16px; font-weight:900; }
-    .sub{ margin:3px 0 0; font-size:12px; opacity:.95; }
 
+    .titleWrap{
+      min-width:0;
+      line-height:1.1;
+    }
+
+    .name{
+      margin:0;
+      font-size:16px;
+      font-weight:900;
+    }
+
+    .sub{
+      margin:3px 0 0;
+      font-size:12px;
+      opacity:.95;
+    }
+
+    /* ===== LAYOUT ===== */
     .wrap{
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 12px;
-  padding-top: 88px; /* 🔑 tambah aman */
-}
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 12px;
+      padding-top: 88px; /* offset untuk topbar fixed */
+    }
 
     .summary{
       margin-top: 12px;
@@ -75,6 +102,7 @@
       border-radius: var(--radius);
       padding: 16px;
     }
+
     .label{
       margin:0;
       font-size:12px;
@@ -83,6 +111,7 @@
       color: var(--muted);
       font-weight:800;
     }
+
     .amount{
       margin:6px 0 0;
       font-size:28px;
@@ -106,12 +135,16 @@
       overflow:hidden;
     }
 
+    /* ===== TABLE ===== */
     table{
       width:100%;
       border-collapse: collapse;
-      table-layout: fixed;
+      table-layout: fixed; /* penting biar lebar kolom tidak ngikut text */
     }
-    col.c1, col.c2, col.c3 { width: 33.3333%; }
+
+    col.c1, col.c2, col.c3{
+      width: 33.3333%;
+    }
 
     thead th{
       padding: 12px 12px;
@@ -122,13 +155,18 @@
       border-bottom: 1px solid rgba(255,255,255,.10);
       text-align: left;
     }
-    thead th:nth-child(2){ text-align:center; background: var(--colTerimaBg); }
-    thead th:nth-child(3){ text-align:center; }
+    thead th:nth-child(2){
+      text-align:center;
+      background: var(--colTerimaBg);
+    }
+    thead th:nth-child(3){
+      text-align:center;
+    }
 
     tbody tr{
-      height: var(--rowH);
+      height: var(--rowH); /* tinggi baris tetap */
       border-bottom: 1px solid rgba(255,255,255,.08);
-      cursor: pointer; /* ✅ bisa di klik */
+      cursor: pointer;
     }
     tbody tr:last-child{ border-bottom:0; }
     tbody tr:active{ filter: brightness(1.08); }
@@ -154,6 +192,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     .note{
       margin-top: 6px;
       font-size: 11px;
@@ -163,11 +202,12 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     .note.empty{
       display:block;
       visibility:hidden;
       margin-top: 6px;
-      height: 13px;
+      height: 13px; /* biar tinggi baris konsisten walau note kosong */
     }
 
     .amt{
@@ -204,7 +244,7 @@
       display:none;
       align-items: flex-end;
       justify-content: center;
-      z-index: 999;
+      z-index: 2000;
       padding: 12px;
     }
     .modalOverlay.show{ display:flex; }
@@ -218,8 +258,9 @@
       overflow:hidden;
       box-shadow: 0 20px 60px rgba(0,0,0,.45);
     }
+
     .modalHeader{
-      padding: 14px 14px;
+      padding: 14px;
       display:flex;
       align-items:center;
       justify-content: space-between;
@@ -227,12 +268,14 @@
       background: rgba(255,255,255,.04);
       border-bottom: 1px solid rgba(255,255,255,.10);
     }
+
     .modalTitle{
       margin:0;
       font-weight: 950;
       font-size: 15px;
       letter-spacing: .2px;
     }
+
     .closeBtn{
       border:0;
       background: rgba(255,255,255,.12);
@@ -245,9 +288,11 @@
       display:grid;
       place-items:center;
     }
+
     .modalBody{
       padding: 14px;
     }
+
     .kv{
       display:grid;
       grid-template-columns: 140px 1fr;
@@ -255,6 +300,7 @@
       font-size: 13px;
       line-height: 1.35;
     }
+
     .k{
       color: rgba(234,240,255,.62);
       font-weight: 800;
@@ -262,24 +308,29 @@
       font-size: 11px;
       letter-spacing: .3px;
     }
+
     .v{
       font-weight: 900;
       color: rgba(234,240,255,.92);
       overflow-wrap: anywhere;
     }
+
     .v.small{
       font-weight: 800;
       color: rgba(234,240,255,.78);
     }
+
+    /* badge jadi plain text */
     .badge{
-  padding: 0;
-  border-radius: 0;
-  background: none;
-  border: 0;
-  font-weight: 900;
-}
+      padding: 0;
+      border-radius: 0;
+      background: none;
+      border: 0;
+      font-weight: 900;
+    }
     .badge.red{ color: var(--red); }
     .badge.green{ color: var(--green); }
+
     .divider{
       height:1px;
       background: rgba(255,255,255,.10);
@@ -290,7 +341,6 @@
 
 <body>
   <header class="topbar">
-    
     <div class="avatar" id="avatar">?</div>
     <div class="titleWrap">
       <p class="name" id="namaHeader">Memuat...</p>
