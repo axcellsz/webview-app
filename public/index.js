@@ -6,7 +6,7 @@
 const API_BASE = "";
 
 // Isi SYNC_KEY sesuai env.SYNC_KEY yang kamu set di Cloudflare Worker
-const SYNC_KEY = "ISI_SYNC_KEY_KAMU_DI_SINI";
+const SYNC_KEY = "kunci_sinkron_123";
 
 // =====================
 // Helpers
