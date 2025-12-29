@@ -1,6 +1,10 @@
 const { API_BASE, SYNC_KEY } = window.APP_CONFIG || {};
 const $ = (id) => document.getElementById(id);
 
+// state (biar modal bisa ambil data)
+let STATE_USER = { nama: "", wa: "" };
+let STATE_ROWS = []; // array mapped rows (dengan raw tx)
+
 function getParam(name) {
   const u = new URL(location.href);
   return u.searchParams.get(name) || "";
@@ -41,6 +45,8 @@ function escapeHtml(s){
     .replaceAll("'","&#039;");
 }
 
+function pad2(n){ return String(n).padStart(2,"0"); }
+
 function toDateMs(any) {
   if (any === null || any === undefined || any === "") return NaN;
   if (typeof any === "number") return any < 1e12 ? any * 1000 : any;
@@ -62,6 +68,7 @@ function toDateMs(any) {
     const mon = map[monStr];
     if (mon !== undefined) return new Date(year, mon, day).getTime();
   }
+
   return NaN;
 }
 
@@ -70,24 +77,43 @@ function dateLabelFromMs(ms){
   return new Date(ms).toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" });
 }
 
+function dateTimeLabel(ms){
+  if (!isFinite(ms)) return "-";
+  const d = new Date(ms);
+  const tanggal = d.toLocaleDateString("id-ID", { day:"2-digit", month:"long", year:"numeric" });
+  const jam = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  return `${tanggal} Jam ${jam}`;
+}
+
 function mapTx(tx) {
   const amount = Number(pick(tx, ["amount", "nominal", "nilai"], NaN));
   const typeRaw = String(pick(tx, ["type", "jenis", "kategori"], "")).toLowerCase();
 
   const note = String(pick(tx, ["note", "keterangan", "nama", "by", "from"], "") || "").trim();
+
   const dateVal = pick(tx, ["ts", "time", "createdAt", "date", "tanggal"], "");
   const ms = toDateMs(dateVal);
 
   const isTerima = ["terima", "bayar", "payment", "kredit", "masuk"].includes(typeRaw);
   const isBerikan = ["berikan", "hutang", "debit", "keluar", "pinjam"].includes(typeRaw);
 
+  // kalau type tidak jelas, treat sebagai berikan
+  const finalTerima = isTerima ? amount : null;
+  const finalBerikan = isBerikan ? amount : null;
+  const fallbackBerikan = (!isTerima && !isBerikan && isFinite(amount)) ? amount : null;
+
+  const kind = (finalTerima != null) ? "terima" : "berikan";
+
   return {
     ms,
     dateText: isFinite(ms) ? dateLabelFromMs(ms) : "-",
     note,
-    terima: isTerima ? amount : null,
-    berikan: isBerikan ? amount : null,
-    unknownAmount: (!isTerima && !isBerikan) ? amount : null
+    terima: finalTerima,
+    berikan: finalBerikan,
+    fallbackBerikan,
+    kind,
+    amount: (finalTerima != null) ? finalTerima : (finalBerikan != null ? finalBerikan : fallbackBerikan),
+    raw: tx
   };
 }
 
@@ -114,6 +140,39 @@ function setTotalSimple(totalTerima, totalBerikan){
   }
 }
 
+/* ===== Modal logic ===== */
+function openModalByIndex(idx){
+  const r = STATE_ROWS[idx];
+  if (!r) return;
+
+  // tanggal + jam (kalau ada)
+  $("mTanggal").textContent = dateTimeLabel(r.ms);
+
+  // jenis
+  const isTerima = (r.kind === "terima");
+  const badge = $("mJenis");
+  badge.className = "badge " + (isTerima ? "green" : "red");
+  badge.textContent = isTerima ? "Hutang Dibayar / Diterima" : "Hutang Diberikan";
+
+  // nominal
+  $("mNominal").textContent = formatIDR(Number(r.amount) || 0);
+
+  // detail transaksi: ambil dari note/keterangan kalau ada
+  const detail =
+    String(pick(r.raw || {}, ["detail", "keterangan", "note", "desc", "description"], "") || r.note || "").trim();
+  $("mDetail").textContent = detail || "-";
+
+  // penerima hutang (ambil dari user utama)
+  $("mNama").textContent = STATE_USER.nama || "-";
+  $("mWa").textContent = STATE_USER.wa || "-";
+
+  $("modalOverlay").classList.add("show");
+}
+
+function closeModal(){
+  $("modalOverlay").classList.remove("show");
+}
+
 function renderRows(rows){
   const tbody = $("tbody");
   tbody.innerHTML = "";
@@ -123,20 +182,17 @@ function renderRows(rows){
     return;
   }
 
-  for (const r of rows) {
-    const terimaVal = r.terima ?? null;
-    const berikanVal = r.berikan ?? null;
+  STATE_ROWS = rows;
 
-    // fallback type tidak dikenali -> anggap berikan
-    const fallbackBerikan =
-      (terimaVal === null && berikanVal === null && typeof r.unknownAmount === "number" && isFinite(r.unknownAmount))
-        ? r.unknownAmount
-        : null;
+  rows.forEach((r, idx) => {
+    const terimaText = (typeof r.terima === "number" && isFinite(r.terima)) ? formatIDR(r.terima) : "-";
 
-    const terimaText = (typeof terimaVal === "number" && isFinite(terimaVal)) ? formatIDR(terimaVal) : "-";
-    const berikanText = (typeof berikanVal === "number" && isFinite(berikanVal)) ? formatIDR(berikanVal)
-                      : (typeof fallbackBerikan === "number" && isFinite(fallbackBerikan)) ? formatIDR(fallbackBerikan)
-                      : "-";
+    const berikanVal =
+      (typeof r.berikan === "number" && isFinite(r.berikan)) ? r.berikan
+      : (typeof r.fallbackBerikan === "number" && isFinite(r.fallbackBerikan)) ? r.fallbackBerikan
+      : null;
+
+    const berikanText = (typeof berikanVal === "number") ? formatIDR(berikanVal) : "-";
 
     const terimaClass = (terimaText !== "-") ? "amt green" : "amt muted";
     const berikanClass = (berikanText !== "-") ? "amt red" : "amt muted";
@@ -146,6 +202,7 @@ function renderRows(rows){
     const noteClass = hasNote ? "note" : "note empty";
 
     const tr = document.createElement("tr");
+    tr.dataset.idx = String(idx);
     tr.innerHTML = `
       <td>
         <div class="dateMain">${escapeHtml(r.dateText)}</div>
@@ -154,8 +211,10 @@ function renderRows(rows){
       <td><span class="${terimaClass}">${escapeHtml(terimaText)}</span></td>
       <td><span class="${berikanClass}">${escapeHtml(berikanText)}</span></td>
     `;
+
+    tr.addEventListener("click", () => openModalByIndex(idx));
     tbody.appendChild(tr);
-  }
+  });
 }
 
 async function fetchKVGet(wa) {
@@ -168,8 +227,18 @@ async function fetchKVGet(wa) {
   return data;
 }
 
+/* ===== events ===== */
 $("btnBack").addEventListener("click", () => history.back());
 
+$("btnCloseModal").addEventListener("click", closeModal);
+$("modalOverlay").addEventListener("click", (e) => {
+  if (e.target === $("modalOverlay")) closeModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeModal();
+});
+
+/* ===== init ===== */
 (async () => {
   const wa = normWA(getParam("wa"));
 
@@ -193,10 +262,12 @@ $("btnBack").addEventListener("click", () => history.back());
     if (!resp.found) throw new Error("Data tidak ditemukan di KV.");
 
     const obj = resp.value || {};
-    const nama = pick(obj, ["nama", "name", "username"], "") || wa;
 
+    const nama = pick(obj, ["nama", "name", "username"], "") || wa;
     $("namaHeader").textContent = nama;
     $("avatar").textContent = String(nama).trim().slice(0, 1).toUpperCase() || "?";
+
+    STATE_USER = { nama, wa };
 
     const list = Array.isArray(obj.transactions) ? obj.transactions : [];
     const mapped = list.map(mapTx);
@@ -213,14 +284,15 @@ $("btnBack").addEventListener("click", () => history.back());
 
     for (const r of mapped) {
       if (typeof r.terima === "number" && isFinite(r.terima)) totalTerima += r.terima;
-      if (typeof r.berikan === "number" && isFinite(r.berikan)) totalBerikan += r.berikan;
-      if (r.terima == null && r.berikan == null && typeof r.unknownAmount === "number" && isFinite(r.unknownAmount)) {
-        totalBerikan += r.unknownAmount;
-      }
+      const b = (typeof r.berikan === "number" && isFinite(r.berikan)) ? r.berikan
+              : (typeof r.fallbackBerikan === "number" && isFinite(r.fallbackBerikan)) ? r.fallbackBerikan
+              : 0;
+      totalBerikan += b;
     }
 
     setTotalSimple(totalTerima, totalBerikan);
     renderRows(mapped);
+
     setStatus("OK");
   } catch (e) {
     $("tbody").innerHTML = `<tr><td colspan="3" class="emptyRow">Gagal memuat data.</td></tr>`;
