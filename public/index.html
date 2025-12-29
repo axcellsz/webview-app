@@ -1,1 +1,265 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cek Hutang</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    .card { max-width: 720px; border: 1px solid #ddd; border-radius: 12px; padding: 16px; }
+    label { display:block; margin-bottom: 8px; font-weight: 600; }
+    input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 10px; font-size: 16px; }
+    button { margin-top: 12px; padding: 12px 14px; border: 0; border-radius: 10px; cursor: pointer; font-size: 16px; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .row { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .muted { color:#666; font-size: 14px; }
+    .ok { color: #0a7a0a; }
+    .err { color: #b00020; }
+    pre { background: #0b1020; color: #e7e7e7; padding: 12px; border-radius: 12px; overflow:auto; }
+    .kv { margin-top: 14px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .box { border: 1px solid #eee; border-radius: 12px; padding: 12px; }
+    .box h3 { margin: 0 0 8px; font-size: 15px; }
+    .box .val { font-size: 18px; font-weight: 700; }
+    @media (max-width: 640px){ .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 style="margin-top:0;">Cek Data Hutang</h2>
+    <p class="muted" style="margin-top:-6px;">
+      Masukkan nomor WA format <b>08xxxx</b>, lalu klik <b>Masuk</b>.
+    </p>
 
+    <label for="nomor">Input nomor</label>
+    <input id="nomor" inputmode="numeric" autocomplete="tel" placeholder="Contoh: 081234567890" />
+
+    <div class="row">
+      <button id="btnMasuk">Masuk</button>
+      <button id="btnReset" type="button">Reset</button>
+    </div>
+
+    <p id="status" class="muted" style="margin-top:12px;"></p>
+
+    <div id="hasil" class="kv" style="display:none;">
+      <div class="grid">
+        <div class="box">
+          <h3>Nomor</h3>
+          <div class="val" id="outNomor">-</div>
+        </div>
+        <div class="box">
+          <h3>Total Hutang</h3>
+          <div class="val" id="outTotal">-</div>
+          <div class="muted" id="outMeta"></div>
+        </div>
+      </div>
+
+      <h3 style="margin: 16px 0 8px;">Detail Data (KV)</h3>
+      <pre id="outJson">{}</pre>
+    </div>
+  </div>
+
+  <script>
+    // ====== KONFIG ======
+    // Jika index.html dan worker berada di domain yang sama, biarkan kosong.
+    // Kalau beda domain, isi misalnya: "https://domain-worker-kamu.workers.dev"
+    const API_BASE = "";
+
+    // ====== Helpers ======
+    const $ = (id) => document.getElementById(id);
+
+    function normWA(raw) {
+      const digits = String(raw || "").replace(/[^\d]/g, "");
+      if (!digits.startsWith("08")) return "";
+      if (digits.length < 9) return "";
+      return digits;
+    }
+
+    function formatIDR(n) {
+      if (typeof n !== "number" || !isFinite(n)) return "-";
+      return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(n);
+    }
+
+    // Coba hitung total hutang dari struktur data yang mungkin kamu simpan
+    function computeTotalHutang(obj) {
+      if (!obj || typeof obj !== "object") return NaN;
+
+      // 1) Kalau sudah ada field total/amount:
+      const direct =
+        (typeof obj.totalHutang === "number" && obj.totalHutang) ||
+        (typeof obj.total === "number" && obj.total) ||
+        (typeof obj.hutang === "number" && obj.hutang) ||
+        (typeof obj.balance === "number" && obj.balance);
+
+      if (typeof direct === "number") return direct;
+
+      // 2) Kalau ada transactions: [{amount, type}, ...]
+      // Asumsi: type "hutang"/"debit" menambah, "bayar"/"kredit" mengurangi (fleksibel)
+      if (Array.isArray(obj.transactions)) {
+        let sum = 0;
+        for (const t of obj.transactions) {
+          const amt = Number(t?.amount);
+          if (!isFinite(amt)) continue;
+          const type = String(t?.type || "").toLowerCase();
+
+          const isPlus = ["hutang", "debit", "pinjam", "tambah"].includes(type);
+          const isMinus = ["bayar", "kredit", "payment", "kurang", "cicil"].includes(type);
+
+          if (isMinus) sum -= amt;
+          else if (isPlus) sum += amt;
+          else sum += amt; // default: dianggap menambah
+        }
+        return sum;
+      }
+
+      return NaN;
+    }
+
+    function setStatus(msg, kind = "muted") {
+      const el = $("status");
+      el.className = kind;
+      el.textContent = msg || "";
+    }
+
+    function showResult(obj) {
+      $("hasil").style.display = "block";
+      $("outJson").textContent = JSON.stringify(obj, null, 2);
+
+      const nomor = obj?.nomor ?? "-";
+      $("outNomor").textContent = nomor;
+
+      const total = computeTotalHutang(obj);
+      $("outTotal").textContent = isFinite(total) ? formatIDR(total) : "-";
+
+      const updatedAt = obj?.updatedAt ? new Date(obj.updatedAt).toLocaleString("id-ID") : null;
+      const schema = obj?.schema ?? null;
+      const txCount = Array.isArray(obj?.transactions) ? obj.transactions.length : null;
+
+      const metaParts = [];
+      if (schema != null) metaParts.push(`schema: ${schema}`);
+      if (txCount != null) metaParts.push(`transactions: ${txCount}`);
+      if (updatedAt) metaParts.push(`updated: ${updatedAt}`);
+
+      $("outMeta").textContent = metaParts.join(" • ");
+    }
+
+    function hideResult() {
+      $("hasil").style.display = "none";
+      $("outJson").textContent = "{}";
+      $("outNomor").textContent = "-";
+      $("outTotal").textContent = "-";
+      $("outMeta").textContent = "";
+    }
+
+    async function fetchKVGet(wa, syncKey) {
+      const url = `${API_BASE}/kv/get?wa=${encodeURIComponent(wa)}`;
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          "X-Sync-Key": syncKey,
+        },
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        // kalau bukan JSON, biar terlihat di error
+        const t = await res.text().catch(() => "");
+        throw new Error(`Response bukan JSON. Status ${res.status}. Body: ${t.slice(0, 200)}`);
+      }
+
+      if (!res.ok) {
+        const msg = data?.error ? `${data.error}` : `HTTP_${res.status}`;
+        throw new Error(msg);
+      }
+
+      return data;
+    }
+
+    // ====== UI Logic ======
+    $("btnMasuk").addEventListener("click", async () => {
+      hideResult();
+      const raw = $("nomor").value;
+      const wa = normWA(raw);
+
+      if (!wa) {
+        setStatus("Nomor tidak valid. Harus mulai 08 dan minimal 9 digit.", "err");
+        return;
+      }
+
+      // minta sync key sekali, disimpan di sessionStorage
+      let syncKey = sessionStorage.getItem("SYNC_KEY") || "";
+      if (!syncKey) {
+        syncKey = prompt("Masukkan X-Sync-Key (SYNC_KEY Worker):") || "";
+        if (syncKey) sessionStorage.setItem("SYNC_KEY", syncKey);
+      }
+
+      if (!syncKey) {
+        setStatus("X-Sync-Key belum diisi.", "err");
+        return;
+      }
+
+      $("btnMasuk").disabled = true;
+      setStatus("Mengecek data di KV...", "muted");
+
+      try {
+        const resp = await fetchKVGet(wa, syncKey);
+
+        if (!resp?.success) {
+          setStatus("Gagal mengambil data.", "err");
+          return;
+        }
+
+        if (!resp.found) {
+          setStatus(`Data untuk ${wa} tidak ditemukan di KV. (key: ${resp.key})`, "err");
+          return;
+        }
+
+        // resp.value berisi object (hasil parse JSON oleh worker)
+        showResult(resp.value);
+        setStatus(`Data ditemukan untuk ${wa}.`, "ok");
+      } catch (e) {
+        const msg = String(e?.message || e);
+        if (msg.includes("UNAUTHORIZED")) {
+          sessionStorage.removeItem("SYNC_KEY");
+          setStatus("UNAUTHORIZED. X-Sync-Key salah / belum diset di env worker.", "err");
+        } else if (msg.includes("WA_INVALID")) {
+          setStatus("WA_INVALID. Nomor harus format 08xxxx.", "err");
+        } else {
+          setStatus(`Error: ${msg}`, "err");
+        }
+      } finally {
+        $("btnMasuk").disabled = false;
+      }
+    });
+
+    $("btnReset").addEventListener("click", () => {
+      $("nomor").value = "";
+      sessionStorage.removeItem("SYNC_KEY");
+      hideResult();
+      setStatus("Di-reset. Silakan isi nomor lagi.", "muted");
+    });
+
+    // Enter untuk submit
+    $("nomor").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") $("btnMasuk").click();
+    });
+
+    // cek /ping saat load (opsional)
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/ping`);
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.ok) {
+          setStatus(`Worker online (${data.worker}).`, "muted");
+        } else {
+          setStatus("Worker tidak merespons /ping.", "err");
+        }
+      } catch {
+        setStatus("Tidak bisa konek ke worker. Cek API_BASE / domain.", "err");
+      }
+    })();
+  </script>
+</body>
+</html>
