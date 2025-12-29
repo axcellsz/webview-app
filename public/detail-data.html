@@ -5,52 +5,190 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Detail Hutang</title>
   <style>
-    *{box-sizing:border-box}
-    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; background:#0b1220; color:#eaf0ff;}
-    .wrap{max-width:860px; margin:0 auto; padding:18px;}
-    .top{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;}
-    .title{margin:0; font-size:18px}
-    .sub{margin:6px 0 0; color:rgba(234,240,255,.7); font-size:13px}
-    .btn{border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#eaf0ff; padding:10px 12px; border-radius:12px; cursor:pointer;}
-    .card{border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); border-radius:16px; padding:14px;}
-    .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;}
-    .box{border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); border-radius:14px; padding:12px;}
-    .k{font-size:12px; color:rgba(234,240,255,.7); margin:0 0 6px; text-transform:uppercase; letter-spacing:.2px}
-    .v{font-size:18px; font-weight:800; margin:0}
-    pre{margin:0; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(7,10,18,.65); padding:12px; overflow:auto; font-size:12.5px; line-height:1.45;}
-    .status{margin:10px 0 0; color:rgba(234,240,255,.75); font-size:13px}
-    .err{color:#ffb3be}
-    @media (max-width:640px){ .grid{grid-template-columns:1fr;} }
+    :root{
+      --bg:#0b1220;
+      --card: rgba(255,255,255,.06);
+      --line: rgba(255,255,255,.12);
+      --text:#eaf0ff;
+      --muted: rgba(234,240,255,.7);
+      --blue:#1e88e5;
+      --green:#22c55e;
+      --red:#ef4444;
+      --colGreenBg: rgba(34,197,94,.10);
+      --radius: 16px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* Top bar mirip screenshot */
+    .topbar{
+      position: sticky; top:0; z-index:5;
+      background: linear-gradient(180deg, rgba(30,136,229,.98), rgba(30,136,229,.92));
+      color: white;
+      padding: 12px 12px;
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+    }
+    .back{
+      width: 40px; height: 40px;
+      border-radius: 999px;
+      border: 0;
+      background: rgba(255,255,255,.15);
+      color: white;
+      cursor:pointer;
+      display:grid;
+      place-items:center;
+      font-size: 18px;
+    }
+    .avatar{
+      width: 40px; height: 40px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.18);
+      display:grid;
+      place-items:center;
+      font-weight: 800;
+    }
+    .titleWrap{ line-height:1.1; }
+    .name{ font-size: 16px; font-weight: 800; margin:0; }
+    .sub{ font-size: 12px; opacity:.9; margin:3px 0 0; }
+
+    .wrap{
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 12px;
+    }
+
+    .summary{
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 12px;
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .sumBox{
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .k{ margin:0 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing:.2px;}
+    .v{ margin:0; font-size: 16px; font-weight: 900; }
+    .v.green{ color: #63f29a; }
+    .v.red{ color: #ff7a8f; }
+    .v.white{ color: var(--text); }
+
+    @media (max-width: 720px){
+      .summary{ grid-template-columns: 1fr; }
+    }
+
+    /* Tabel list */
+    .tableCard{
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: var(--radius);
+      overflow:hidden;
+    }
+    .thead{
+      display:grid;
+      grid-template-columns: 1.1fr 1fr 1fr;
+      font-weight: 800;
+      color: rgba(255,255,255,.92);
+      background: rgba(255,255,255,.06);
+      border-bottom: 1px solid rgba(255,255,255,.10);
+    }
+    .th, .td{
+      padding: 12px 12px;
+      font-size: 14px;
+    }
+    .thead .th:nth-child(2),
+    .row .td:nth-child(2){
+      background: var(--colGreenBg);
+    }
+    .tbody .row{
+      display:grid;
+      grid-template-columns: 1.1fr 1fr 1fr;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .tbody .row:last-child{ border-bottom:0; }
+
+    .dateMain{ font-weight: 800; }
+    .dateSub{ margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: 700; }
+
+    .amt{
+      font-weight: 900;
+      font-size: 16px;
+      text-align:center;
+      white-space: nowrap;
+    }
+    .amt.green{ color: #63f29a; }
+    .amt.red{ color: #ff7a8f; }
+    .amt.muted{ color: rgba(234,240,255,.35); }
+
+    .status{
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .status.err{ color: #ffb3be; }
+
+    .empty{
+      padding: 16px 12px;
+      color: rgba(234,240,255,.6);
+      font-size: 14px;
+    }
   </style>
 </head>
+
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div>
-        <h1 class="title">Detail Data Hutang</h1>
-        <p class="sub" id="subtitle">Memuat...</p>
-      </div>
-      <button class="btn" id="btnBack">Kembali</button>
+  <header class="topbar">
+    <button class="back" id="btnBack" aria-label="Kembali">←</button>
+    <div class="avatar" id="avatar">?</div>
+    <div class="titleWrap">
+      <p class="name" id="namaHeader">Memuat...</p>
+      <p class="sub" id="subHeader">-</p>
     </div>
+  </header>
 
-    <div class="card">
-      <div class="grid">
-        <div class="box">
-          <p class="k">Nomor</p>
-          <p class="v" id="outNomor">-</p>
-        </div>
-        <div class="box">
-          <p class="k">Total Hutang</p>
-          <p class="v" id="outTotal">-</p>
-        </div>
+  <main class="wrap">
+    <section class="summary" aria-label="Ringkasan">
+      <div class="sumBox">
+        <p class="k">Total Terima</p>
+        <p class="v green" id="sumTerima">-</p>
       </div>
+      <div class="sumBox">
+        <p class="k">Total Berikan</p>
+        <p class="v red" id="sumBerikan">-</p>
+      </div>
+      <div class="sumBox">
+        <p class="k">Saldo</p>
+        <p class="v white" id="sumSaldo">-</p>
+      </div>
+    </section>
 
-      <p class="k" style="margin:0 0 8px;">Data KV (JSON)</p>
-      <pre id="outJson">{}</pre>
+    <section class="tableCard" aria-label="Daftar transaksi">
+      <div class="thead">
+        <div class="th">Tanggal</div>
+        <div class="th" style="text-align:center;">Terima</div>
+        <div class="th" style="text-align:center;">Berikan</div>
+      </div>
+      <div class="tbody" id="tbody">
+        <div class="empty">Memuat data...</div>
+      </div>
+    </section>
 
-      <div id="status" class="status"></div>
-    </div>
-  </div>
+    <div id="status" class="status"></div>
+  </main>
 
   <script src="./config.js"></script>
   <script src="./detail-data.js"></script>
