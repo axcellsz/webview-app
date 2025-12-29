@@ -82,7 +82,7 @@ function dateTimeLabel(ms){
   const d = new Date(ms);
   const tanggal = d.toLocaleDateString("id-ID", { day:"2-digit", month:"long", year:"numeric" });
   const jam = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-  return `${tanggal} Jam ${jam}`;
+  return `${tanggal} <br>Jam ${jam}`;
 }
 
 function mapTx(tx) {
@@ -152,7 +152,7 @@ function openModalByIndex(idx){
   const isTerima = (r.kind === "terima");
   const badge = $("mJenis");
   badge.className = "badge " + (isTerima ? "green" : "red");
-  badge.textContent = isTerima ? "Hutang Dibayar / Diterima" : "Hutang Diberikan";
+  badge.textContent = isTerima ? "Pembayaran" : "Pemberian hutang";
 
   // nominal
   $("mNominal").textContent = formatIDR(Number(r.amount) || 0);
