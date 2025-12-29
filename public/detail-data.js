@@ -86,14 +86,11 @@ function mapTx(tx) {
   const amount = Number(pick(tx, ["amount", "nominal", "nilai"], NaN));
   const typeRaw = String(pick(tx, ["type", "jenis", "kategori"], "")).toLowerCase();
 
-  // keterangan bawah tanggal
   const note = String(pick(tx, ["note", "keterangan", "nama", "by", "from"], "") || "").trim();
 
-  // tanggal
   const dateVal = pick(tx, ["ts", "time", "createdAt", "date", "tanggal"], "");
   const ms = toDateMs(dateVal);
 
-  // Mapping kolom:
   const isTerima = ["terima", "bayar", "payment", "kredit", "masuk"].includes(typeRaw);
   const isBerikan = ["berikan", "hutang", "debit", "keluar", "pinjam"].includes(typeRaw);
 
@@ -120,7 +117,6 @@ function renderRows(rows) {
     const terimaVal = r.terima ?? null;
     const berikanVal = r.berikan ?? null;
 
-    // fallback type tidak dikenali -> anggap berikan
     const fallbackBerikan =
       (terimaVal === null && berikanVal === null && typeof r.unknownAmount === "number" && isFinite(r.unknownAmount))
         ? r.unknownAmount
@@ -134,16 +130,17 @@ function renderRows(rows) {
     const terimaClass = (terimaText !== "-") ? "amt green" : "amt muted";
     const berikanClass = (berikanText !== "-") ? "amt red" : "amt muted";
 
-    // >>> penting: selalu render dateSub walau kosong (supaya tinggi baris konsisten)
-    const noteSafe = escapeHtml(r.note || "");
-    const noteClass = r.note ? "dateSub" : "dateSub empty";
+    const hasNote = !!(r.note && r.note.trim());
+    const noteClass = hasNote ? "dateSub" : "dateSub empty";
 
     const el = document.createElement("div");
     el.className = "row";
     el.innerHTML = `
       <div class="td">
-        <div class="dateMain">${escapeHtml(r.dateText)}</div>
-        <div class="${noteClass}">${noteSafe || "&nbsp;"}</div>
+        <div class="dateCell">
+          <div class="dateMain">${escapeHtml(r.dateText)}</div>
+          <div class="${noteClass}">${hasNote ? escapeHtml(r.note) : ""}</div>
+        </div>
       </div>
       <div class="td ${terimaClass}">${escapeHtml(terimaText)}</div>
       <div class="td ${berikanClass}">${escapeHtml(berikanText)}</div>
@@ -161,7 +158,7 @@ async function fetchKVGet(wa) {
 }
 
 function setTotalSimple(totalTerima, totalBerikan){
-  const saldo = totalTerima - totalBerikan; // + = kelebihan bayar, - = masih hutang
+  const saldo = totalTerima - totalBerikan; // + kelebihan bayar, - masih hutang
   const totalEl = $("totalHutang");
   const overpayBox = $("overpayBox");
   const overpayAmount = $("overpayAmount");
@@ -216,7 +213,6 @@ $("btnBack").addEventListener("click", () => history.back());
     const list = Array.isArray(obj.transactions) ? obj.transactions : [];
     const mapped = list.map(mapTx);
 
-    // sort terbaru dulu
     mapped.sort((a,b) => {
       const am = isFinite(a.ms) ? a.ms : -Infinity;
       const bm = isFinite(b.ms) ? b.ms : -Infinity;
@@ -230,7 +226,7 @@ $("btnBack").addEventListener("click", () => history.back());
       if (typeof r.terima === "number" && isFinite(r.terima)) totalTerima += r.terima;
       if (typeof r.berikan === "number" && isFinite(r.berikan)) totalBerikan += r.berikan;
       if (r.terima == null && r.berikan == null && typeof r.unknownAmount === "number" && isFinite(r.unknownAmount)) {
-        totalBerikan += r.unknownAmount; // fallback
+        totalBerikan += r.unknownAmount;
       }
     }
 
