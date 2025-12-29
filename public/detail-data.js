@@ -44,22 +44,18 @@ function escapeHtml(s){
 function toDateMs(any) {
   if (any === null || any === undefined || any === "") return NaN;
 
-  if (typeof any === "number") {
-    return any < 1e12 ? any * 1000 : any; // detik -> ms
-  }
+  if (typeof any === "number") return any < 1e12 ? any * 1000 : any;
 
   const s = String(any).trim();
   const d = new Date(s);
   if (!isNaN(d.getTime())) return d.getTime();
 
-  // coba parse format "29 Des 2025" (id-ID)
-  // jika data kamu sudah seperti ini, biar bisa sort:
+  // parse "29 Des 2025"
   const m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
   if (m) {
     const day = Number(m[1]);
     const monStr = m[2].toLowerCase();
     const year = Number(m[3]);
-
     const map = {
       jan:0, januari:0,
       feb:1, februari:1,
@@ -90,23 +86,21 @@ function mapTx(tx) {
   const amount = Number(pick(tx, ["amount", "nominal", "nilai"], NaN));
   const typeRaw = String(pick(tx, ["type", "jenis", "kategori"], "")).toLowerCase();
 
-  // Nama/keterangan di bawah tanggal (seperti screenshot)
-  const note = pick(tx, ["note", "keterangan", "nama", "by", "from"], "");
+  // keterangan bawah tanggal
+  const note = String(pick(tx, ["note", "keterangan", "nama", "by", "from"], "") || "").trim();
 
-  // Tanggal: dukung banyak field
+  // tanggal
   const dateVal = pick(tx, ["ts", "time", "createdAt", "date", "tanggal"], "");
   const ms = toDateMs(dateVal);
 
   // Mapping kolom:
-  // Terima = pembayaran masuk
-  // Berikan = hutang / uang keluar
   const isTerima = ["terima", "bayar", "payment", "kredit", "masuk"].includes(typeRaw);
   const isBerikan = ["berikan", "hutang", "debit", "keluar", "pinjam"].includes(typeRaw);
 
   return {
     ms,
     dateText: isFinite(ms) ? dateLabelFromMs(ms) : "-",
-    note: String(note || "").trim(),
+    note,
     terima: isTerima ? amount : null,
     berikan: isBerikan ? amount : null,
     unknownAmount: (!isTerima && !isBerikan) ? amount : null
@@ -126,7 +120,7 @@ function renderRows(rows) {
     const terimaVal = r.terima ?? null;
     const berikanVal = r.berikan ?? null;
 
-    // fallback kalau type tidak dikenali: anggap "berikan"
+    // fallback type tidak dikenali -> anggap berikan
     const fallbackBerikan =
       (terimaVal === null && berikanVal === null && typeof r.unknownAmount === "number" && isFinite(r.unknownAmount))
         ? r.unknownAmount
@@ -140,14 +134,16 @@ function renderRows(rows) {
     const terimaClass = (terimaText !== "-") ? "amt green" : "amt muted";
     const berikanClass = (berikanText !== "-") ? "amt red" : "amt muted";
 
-    const dateSub = r.note ? `<div class="dateSub">${escapeHtml(r.note)}</div>` : "";
+    // >>> penting: selalu render dateSub walau kosong (supaya tinggi baris konsisten)
+    const noteSafe = escapeHtml(r.note || "");
+    const noteClass = r.note ? "dateSub" : "dateSub empty";
 
     const el = document.createElement("div");
     el.className = "row";
     el.innerHTML = `
       <div class="td">
         <div class="dateMain">${escapeHtml(r.dateText)}</div>
-        ${dateSub}
+        <div class="${noteClass}">${noteSafe || "&nbsp;"}</div>
       </div>
       <div class="td ${terimaClass}">${escapeHtml(terimaText)}</div>
       <div class="td ${berikanClass}">${escapeHtml(berikanText)}</div>
@@ -174,18 +170,14 @@ function setTotalSimple(totalTerima, totalBerikan){
   totalEl.className = "amount";
 
   if (saldo < 0) {
-    // masih hutang
     totalEl.textContent = formatIDR(Math.abs(saldo));
     totalEl.classList.add("red");
   } else if (saldo === 0) {
-    // lunas
     totalEl.textContent = formatIDR(0);
     totalEl.classList.add("white");
   } else {
-    // kelebihan bayar
     totalEl.textContent = formatIDR(0);
     totalEl.classList.add("white");
-
     overpayBox.style.display = "block";
     overpayAmount.textContent = formatIDR(saldo);
   }
@@ -195,6 +187,7 @@ $("btnBack").addEventListener("click", () => history.back());
 
 (async () => {
   const wa = normWA(getParam("wa"));
+
   if (!wa) {
     $("tbody").innerHTML = `<div class="empty">Nomor tidak valid.</div>`;
     return setStatus("Nomor tidak valid (parameter ?wa=08xxxx).", true);
@@ -216,40 +209,32 @@ $("btnBack").addEventListener("click", () => history.back());
 
     const obj = resp.value || {};
 
-    // Header: nama (kalau ada)
     const nama = pick(obj, ["nama", "name", "username"], "") || wa;
     $("namaHeader").textContent = nama;
     $("avatar").textContent = String(nama).trim().slice(0, 1).toUpperCase() || "?";
 
-    // Ambil transaksi
     const list = Array.isArray(obj.transactions) ? obj.transactions : [];
     const mapped = list.map(mapTx);
 
-    // Sort terbaru dulu kalau tanggal valid
+    // sort terbaru dulu
     mapped.sort((a,b) => {
       const am = isFinite(a.ms) ? a.ms : -Infinity;
       const bm = isFinite(b.ms) ? b.ms : -Infinity;
       return bm - am;
     });
 
-    // Hitung total terima/berikan
     let totalTerima = 0;
     let totalBerikan = 0;
 
     for (const r of mapped) {
       if (typeof r.terima === "number" && isFinite(r.terima)) totalTerima += r.terima;
       if (typeof r.berikan === "number" && isFinite(r.berikan)) totalBerikan += r.berikan;
-
-      // fallback type tidak dikenal -> anggap berikan
       if (r.terima == null && r.berikan == null && typeof r.unknownAmount === "number" && isFinite(r.unknownAmount)) {
-        totalBerikan += r.unknownAmount;
+        totalBerikan += r.unknownAmount; // fallback
       }
     }
 
-    // Set TOTAL SIMPLE sesuai logika kamu
     setTotalSimple(totalTerima, totalBerikan);
-
-    // Render tabel
     renderRows(mapped);
 
     setStatus("OK");
