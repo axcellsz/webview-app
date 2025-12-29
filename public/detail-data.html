@@ -1,377 +1,301 @@
-<!doctype html>
-<html lang="id">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Detail Hutang</title>
-  <style>
-    :root{
-      --bg:#0b1220;
-      --card: rgba(255,255,255,.06);
-      --line: rgba(255,255,255,.12);
-      --text:#eaf0ff;
-      --muted: rgba(234,240,255,.68);
+const { API_BASE, SYNC_KEY } = window.APP_CONFIG || {};
+const $ = (id) => document.getElementById(id);
 
-      --blue:#1e88e5;
-      --green:#63f29a;
-      --red:#ff7a8f;
+// state (biar modal bisa ambil data)
+let STATE_USER = { nama: "", wa: "" };
+let STATE_ROWS = []; // array mapped rows (dengan raw tx)
 
-      --colTerimaBg: rgba(34,197,94,.12);
-      --radius: 16px;
-      --rowH: 84px;
-    }
-
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      background: var(--bg);
-      color: var(--text);
-    }
-
-    .topbar{
-      position: sticky; top:0; z-index:10;
-      background: linear-gradient(180deg, rgba(30,136,229,.98), rgba(30,136,229,.92));
-      color:#fff;
-      padding: 12px 12px;
-      display:flex;
-      align-items:center;
-      gap: 10px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.25);
-    }
-    .back{
-      width:40px;height:40px;border-radius:999px;border:0;
-      background: rgba(255,255,255,.15);
-      color:#fff;
-      font-size:18px;
-      display:grid;place-items:center;
-      cursor:pointer;
-      flex:0 0 auto;
-    }
-    .avatar{
-      width:40px;height:40px;border-radius:999px;
-      background: rgba(255,255,255,.18);
-      display:grid;place-items:center;
-      font-weight:900;
-      flex:0 0 auto;
-    }
-    .titleWrap{ min-width:0; line-height:1.1; }
-    .name{ margin:0; font-size:16px; font-weight:900; }
-    .sub{ margin:3px 0 0; font-size:12px; opacity:.95; }
-
-    .wrap{
-      max-width: 920px;
-      margin: 0 auto;
-      padding: 12px;
-    }
-
-    .summary{
-      margin-top: 12px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 16px;
-    }
-    .label{
-      margin:0;
-      font-size:12px;
-      letter-spacing:.3px;
-      text-transform:uppercase;
-      color: var(--muted);
-      font-weight:800;
-    }
-    .amount{
-      margin:6px 0 0;
-      font-size:28px;
-      font-weight:1000;
-    }
-    .amount.red{ color: var(--red); }
-    .amount.green{ color: var(--green); }
-    .amount.white{ color: var(--text); }
-
-    .overpay{
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px dashed rgba(255,255,255,.18);
-    }
-
-    .tableCard{
-      margin-top: 12px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      border-radius: var(--radius);
-      overflow:hidden;
-    }
-
-    table{
-      width:100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-    col.c1, col.c2, col.c3 { width: 33.3333%; }
-
-    thead th{
-      padding: 12px 12px;
-      font-size: 14px;
-      color: rgba(255,255,255,.92);
-      font-weight: 950;
-      background: rgba(255,255,255,.06);
-      border-bottom: 1px solid rgba(255,255,255,.10);
-      text-align: left;
-    }
-    thead th:nth-child(2){ text-align:center; background: var(--colTerimaBg); }
-    thead th:nth-child(3){ text-align:center; }
-
-    tbody tr{
-      height: var(--rowH);
-      border-bottom: 1px solid rgba(255,255,255,.08);
-      cursor: pointer; /* ✅ bisa di klik */
-    }
-    tbody tr:last-child{ border-bottom:0; }
-    tbody tr:active{ filter: brightness(1.08); }
-
-    tbody td{
-      padding: 10px 12px;
-      vertical-align: middle;
-      min-width:0;
-      background: transparent;
-    }
-    tbody td:nth-child(2){
-      text-align:center;
-      background: var(--colTerimaBg);
-    }
-    tbody td:nth-child(3){
-      text-align:center;
-    }
-
-    .dateMain{
-      font-weight: 950;
-      font-size: 15px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .note{
-      margin-top: 6px;
-      font-size: 11px;
-      font-weight: 800;
-      color: rgba(234,240,255,.60);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .note.empty{
-      display:block;
-      visibility:hidden;
-      margin-top: 6px;
-      height: 13px;
-    }
-
-    .amt{
-      font-weight: 1000;
-      font-size: 16px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display:inline-block;
-      max-width: 100%;
-    }
-    .amt.green{ color: var(--green); }
-    .amt.red{ color: var(--red); }
-    .amt.muted{ color: rgba(234,240,255,.35); font-weight: 900; }
-
-    .status{
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-    .status.err{ color: #ffb3be; }
-
-    .emptyRow{
-      padding: 14px 12px;
-      color: rgba(234,240,255,.6);
-      font-size: 14px;
-    }
-
-    /* ===== Modal ===== */
-    .modalOverlay{
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.55);
-      display:none;
-      align-items: flex-end;
-      justify-content: center;
-      z-index: 999;
-      padding: 12px;
-    }
-    .modalOverlay.show{ display:flex; }
-
-    .modal{
-      width: 100%;
-      max-width: 520px;
-      background: rgba(18, 26, 41, .98);
-      border: 1px solid rgba(255,255,255,.12);
-      border-radius: 18px;
-      overflow:hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,.45);
-    }
-    .modalHeader{
-      padding: 14px 14px;
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-      background: rgba(255,255,255,.04);
-      border-bottom: 1px solid rgba(255,255,255,.10);
-    }
-    .modalTitle{
-      margin:0;
-      font-weight: 950;
-      font-size: 15px;
-      letter-spacing: .2px;
-    }
-    .closeBtn{
-      border:0;
-      background: rgba(255,255,255,.12);
-      color: var(--text);
-      border-radius: 999px;
-      width: 36px;
-      height: 36px;
-      cursor:pointer;
-      font-size: 18px;
-      display:grid;
-      place-items:center;
-    }
-    .modalBody{
-      padding: 14px;
-    }
-    .kv{
-      display:grid;
-      grid-template-columns: 140px 1fr;
-      gap: 8px 12px;
-      font-size: 13px;
-      line-height: 1.35;
-    }
-    .k{
-      color: rgba(234,240,255,.62);
-      font-weight: 800;
-      text-transform: uppercase;
-      font-size: 11px;
-      letter-spacing: .3px;
-    }
-    .v{
-      font-weight: 900;
-      color: rgba(234,240,255,.92);
-      overflow-wrap: anywhere;
-    }
-    .v.small{
-      font-weight: 800;
-      color: rgba(234,240,255,.78);
-    }
-    .badge{
-  padding: 0;
-  border-radius: 0;
-  background: none;
-  border: 0;
-  font-weight: 900;
+function getParam(name) {
+  const u = new URL(location.href);
+  return u.searchParams.get(name) || "";
 }
-    .badge.red{ color: var(--red); }
-    .badge.green{ color: var(--green); }
-    .divider{
-      height:1px;
-      background: rgba(255,255,255,.10);
-      margin: 14px 0;
+
+function normWA(raw) {
+  const digits = String(raw || "").replace(/[^\d]/g, "");
+  if (!digits.startsWith("08")) return "";
+  if (digits.length < 9) return "";
+  return digits;
+}
+
+function setStatus(msg, isErr=false) {
+  const el = $("status");
+  el.textContent = msg || "";
+  el.className = "status" + (isErr ? " err" : "");
+}
+
+function formatIDR(n) {
+  if (typeof n !== "number" || !isFinite(n)) return "-";
+  return "Rp" + new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(n);
+}
+
+function pick(obj, keys, fallback = "") {
+  for (const k of keys) {
+    const v = obj?.[k];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return fallback;
+}
+
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function pad2(n){ return String(n).padStart(2,"0"); }
+
+function toDateMs(any) {
+  if (any === null || any === undefined || any === "") return NaN;
+  if (typeof any === "number") return any < 1e12 ? any * 1000 : any;
+
+  const s = String(any).trim();
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d.getTime();
+
+  const m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
+  if (m) {
+    const day = Number(m[1]);
+    const monStr = m[2].toLowerCase();
+    const year = Number(m[3]);
+    const map = {
+      jan:0, januari:0, feb:1, februari:1, mar:2, maret:2, apr:3, april:3,
+      mei:4, jun:5, juni:5, jul:6, juli:6, agu:7, agustus:7, sep:8, september:8,
+      okt:9, oktober:9, nov:10, november:10, des:11, desember:11
+    };
+    const mon = map[monStr];
+    if (mon !== undefined) return new Date(year, mon, day).getTime();
+  }
+
+  return NaN;
+}
+
+function dateLabelFromMs(ms){
+  if (!isFinite(ms)) return "-";
+  return new Date(ms).toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" });
+}
+
+function dateTimeLabel(ms){
+  if (!isFinite(ms)) return "-";
+  const d = new Date(ms);
+  const tanggal = d.toLocaleDateString("id-ID", { day:"2-digit", month:"long", year:"numeric" });
+  const jam = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  return `${tanggal} <br>Jam ${jam}`;
+}
+
+function mapTx(tx) {
+  const amount = Number(pick(tx, ["amount", "nominal", "nilai"], NaN));
+  const typeRaw = String(pick(tx, ["type", "jenis", "kategori"], "")).toLowerCase();
+
+  const note = String(pick(tx, ["note", "keterangan", "nama", "by", "from"], "") || "").trim();
+
+  const dateVal = pick(tx, ["ts", "time", "createdAt", "date", "tanggal"], "");
+  const ms = toDateMs(dateVal);
+
+  const isTerima = ["terima", "bayar", "payment", "kredit", "masuk"].includes(typeRaw);
+  const isBerikan = ["berikan", "hutang", "debit", "keluar", "pinjam"].includes(typeRaw);
+
+  // kalau type tidak jelas, treat sebagai berikan
+  const finalTerima = isTerima ? amount : null;
+  const finalBerikan = isBerikan ? amount : null;
+  const fallbackBerikan = (!isTerima && !isBerikan && isFinite(amount)) ? amount : null;
+
+  const kind = (finalTerima != null) ? "terima" : "berikan";
+
+  return {
+    ms,
+    dateText: isFinite(ms) ? dateLabelFromMs(ms) : "-",
+    note,
+    terima: finalTerima,
+    berikan: finalBerikan,
+    fallbackBerikan,
+    kind,
+    amount: (finalTerima != null) ? finalTerima : (finalBerikan != null ? finalBerikan : fallbackBerikan),
+    raw: tx
+  };
+}
+
+function setTotalSimple(totalTerima, totalBerikan){
+  const saldo = totalTerima - totalBerikan; // + kelebihan bayar, - masih hutang
+  const totalEl = $("totalHutang");
+  const overpayBox = $("overpayBox");
+  const overpayAmount = $("overpayAmount");
+
+  overpayBox.style.display = "none";
+  totalEl.className = "amount";
+
+  if (saldo < 0) {
+    totalEl.textContent = formatIDR(Math.abs(saldo));
+    totalEl.classList.add("red");
+  } else if (saldo === 0) {
+    totalEl.textContent = formatIDR(0);
+    totalEl.classList.add("white");
+  } else {
+    totalEl.textContent = formatIDR(0);
+    totalEl.classList.add("white");
+    overpayBox.style.display = "block";
+    overpayAmount.textContent = formatIDR(saldo);
+  }
+}
+
+/* ===== Modal logic ===== */
+function openModalByIndex(idx){
+  const r = STATE_ROWS[idx];
+  if (!r) return;
+
+  // tanggal + jam (kalau ada)
+  $("mTanggal").innerHTML = dateTimeLabel(r.ms);
+
+  // jenis
+  const isTerima = (r.kind === "terima");
+  const badge = $("mJenis");
+  badge.className = "badge " + (isTerima ? "green" : "red");
+  badge.textContent = isTerima ? "Pembayaran" : "Pemberian hutang";
+
+  // nominal
+  $("mNominal").textContent = formatIDR(Number(r.amount) || 0);
+
+  // detail transaksi: ambil dari note/keterangan kalau ada
+  const detail =
+    String(pick(r.raw || {}, ["detail", "keterangan", "note", "desc", "description"], "") || r.note || "").trim();
+  $("mDetail").textContent = detail || "-";
+
+  // penerima hutang (ambil dari user utama)
+  $("mNama").textContent = STATE_USER.nama || "-";
+  $("mWa").textContent = STATE_USER.wa || "-";
+
+  $("modalOverlay").classList.add("show");
+}
+
+function closeModal(){
+  $("modalOverlay").classList.remove("show");
+}
+
+function renderRows(rows){
+  const tbody = $("tbody");
+  tbody.innerHTML = "";
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="emptyRow">Belum ada transaksi.</td></tr>`;
+    return;
+  }
+
+  STATE_ROWS = rows;
+
+  rows.forEach((r, idx) => {
+    const terimaText = (typeof r.terima === "number" && isFinite(r.terima)) ? formatIDR(r.terima) : "-";
+
+    const berikanVal =
+      (typeof r.berikan === "number" && isFinite(r.berikan)) ? r.berikan
+      : (typeof r.fallbackBerikan === "number" && isFinite(r.fallbackBerikan)) ? r.fallbackBerikan
+      : null;
+
+    const berikanText = (typeof berikanVal === "number") ? formatIDR(berikanVal) : "-";
+
+    const terimaClass = (terimaText !== "-") ? "amt green" : "amt muted";
+    const berikanClass = (berikanText !== "-") ? "amt red" : "amt muted";
+
+    const hasNote = !!(r.note && r.note.trim());
+    const noteHtml = hasNote ? escapeHtml(r.note) : "";
+    const noteClass = hasNote ? "note" : "note empty";
+
+    const tr = document.createElement("tr");
+    tr.dataset.idx = String(idx);
+    tr.innerHTML = `
+      <td>
+        <div class="dateMain">${escapeHtml(r.dateText)}</div>
+        <div class="${noteClass}">${noteHtml}</div>
+      </td>
+      <td><span class="${terimaClass}">${escapeHtml(terimaText)}</span></td>
+      <td><span class="${berikanClass}">${escapeHtml(berikanText)}</span></td>
+    `;
+
+    tr.addEventListener("click", () => openModalByIndex(idx));
+    tbody.appendChild(tr);
+  });
+}
+
+async function fetchKVGet(wa) {
+  const base = (API_BASE && API_BASE.trim()) ? API_BASE.trim().replace(/\/$/, "") : "";
+  const url = `${base}/kv/get?wa=${encodeURIComponent(wa)}`;
+
+  const res = await fetch(url, { headers: { "X-Sync-Key": SYNC_KEY } });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`);
+  return data;
+}
+
+/* ===== events ===== */
+$("btnBack").addEventListener("click", () => history.back());
+
+$("btnCloseModal").addEventListener("click", closeModal);
+$("modalOverlay").addEventListener("click", (e) => {
+  if (e.target === $("modalOverlay")) closeModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeModal();
+});
+
+/* ===== init ===== */
+(async () => {
+  const wa = normWA(getParam("wa"));
+
+  if (!wa) {
+    $("tbody").innerHTML = `<tr><td colspan="3" class="emptyRow">Nomor tidak valid.</td></tr>`;
+    return setStatus("Nomor tidak valid (parameter ?wa=08xxxx).", true);
+  }
+  if (!SYNC_KEY || SYNC_KEY === "ISI_SYNC_KEY_KAMU_DI_SINI") {
+    $("tbody").innerHTML = `<tr><td colspan="3" class="emptyRow">SYNC_KEY belum diisi.</td></tr>`;
+    return setStatus("SYNC_KEY belum diisi di config.js", true);
+  }
+
+  $("subHeader").textContent = wa;
+  $("avatar").textContent = wa.slice(0, 1);
+
+  setStatus("Memuat data...");
+
+  try {
+    const resp = await fetchKVGet(wa);
+    if (!resp?.success) throw new Error("Gagal mengambil data.");
+    if (!resp.found) throw new Error("Data tidak ditemukan di KV.");
+
+    const obj = resp.value || {};
+
+    const nama = pick(obj, ["nama", "name", "username"], "") || wa;
+    $("namaHeader").textContent = nama;
+    $("avatar").textContent = String(nama).trim().slice(0, 1).toUpperCase() || "?";
+
+    STATE_USER = { nama, wa };
+
+    const list = Array.isArray(obj.transactions) ? obj.transactions : [];
+    const mapped = list.map(mapTx);
+
+    // sort terbaru dulu
+    mapped.sort((a,b) => {
+      const am = isFinite(a.ms) ? a.ms : -Infinity;
+      const bm = isFinite(b.ms) ? b.ms : -Infinity;
+      return bm - am;
+    });
+
+    let totalTerima = 0;
+    let totalBerikan = 0;
+
+    for (const r of mapped) {
+      if (typeof r.terima === "number" && isFinite(r.terima)) totalTerima += r.terima;
+      const b = (typeof r.berikan === "number" && isFinite(r.berikan)) ? r.berikan
+              : (typeof r.fallbackBerikan === "number" && isFinite(r.fallbackBerikan)) ? r.fallbackBerikan
+              : 0;
+      totalBerikan += b;
     }
-  </style>
-</head>
 
-<body>
-  <header class="topbar">
-    <button class="back" id="btnBack" aria-label="Kembali">←</button>
-    <div class="avatar" id="avatar">?</div>
-    <div class="titleWrap">
-      <p class="name" id="namaHeader">Memuat...</p>
-      <p class="sub" id="subHeader">-</p>
-    </div>
-  </header>
+    setTotalSimple(totalTerima, totalBerikan);
+    renderRows(mapped);
 
-  <main class="wrap">
-    <section class="summary">
-      <p class="label">Total hutang anda</p>
-      <p id="totalHutang" class="amount white">-</p>
-
-      <div id="overpayBox" class="overpay" style="display:none;">
-        <p class="label">Kelebihan bayar</p>
-        <p id="overpayAmount" class="amount green">-</p>
-      </div>
-    </section>
-
-    <section class="tableCard">
-      <table>
-        <colgroup>
-          <col class="c1" />
-          <col class="c2" />
-          <col class="c3" />
-        </colgroup>
-
-        <thead>
-          <tr>
-            <th>Tanggal</th>
-            <th>Terima</th>
-            <th>Berikan</th>
-          </tr>
-        </thead>
-
-        <tbody id="tbody">
-          <tr><td colspan="3" class="emptyRow">Memuat data...</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <div id="status" class="status"></div>
-  </main>
-
-  <!-- Modal -->
-  <div id="modalOverlay" class="modalOverlay" role="dialog" aria-modal="true">
-    <div class="modal">
-      <div class="modalHeader">
-        <p class="modalTitle">Detail Transaksi</p>
-        <button id="btnCloseModal" class="closeBtn" aria-label="Tutup">×</button>
-      </div>
-
-      <div class="modalBody">
-        <div class="kv">
-          <div class="k">Tanggal</div>
-          <div class="v" id="mTanggal">-</div>
-
-          <div class="k">Jenis</div>
-          <div class="v"><span id="mJenis" class="badge">-</span></div>
-
-          <div class="k">Nominal</div>
-          <div class="v" id="mNominal">-</div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="kv">
-          <div class="k">Detail transaksi</div>
-          <div class="v small" id="mDetail">-</div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="kv">
-          <div class="k">Penerima hutang</div>
-          <div class="v" id="mNama">-</div>
-
-          <div class="k">No WhatsApp</div>
-          <div class="v" id="mWa">-</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="./config.js"></script>
-  <script src="./detail-data.js"></script>
-</body>
-</html>
+    setStatus("OK");
+  } catch (e) {
+    $("tbody").innerHTML = `<tr><td colspan="3" class="emptyRow">Gagal memuat data.</td></tr>`;
+    setStatus(`Error: ${String(e.message || e)}`, true);
+  }
+})();
