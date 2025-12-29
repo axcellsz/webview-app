@@ -1,8 +1,8 @@
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // ===== Helpers =====
+    // ===== CORS =====
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET,PUT,POST,OPTIONS",
@@ -10,19 +10,26 @@ export default {
       "Access-Control-Max-Age": "86400",
     };
 
-    const json = (obj, status = 200) =>
+    // Preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
+    // ===== Helpers =====
+    const json = (obj, status = 200, extraHeaders = {}) =>
       new Response(JSON.stringify(obj, null, 2), {
         status,
         headers: {
           "Content-Type": "application/json; charset=utf-8",
           ...corsHeaders,
+          ...extraHeaders,
         },
       });
 
-    const text = (t, status = 200) =>
+    const text = (t, status = 200, extraHeaders = {}) =>
       new Response(t, {
         status,
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
+        headers: { ...corsHeaders, ...extraHeaders },
       });
 
     const normWA = (wa) => {
@@ -37,63 +44,18 @@ export default {
       return key && env.SYNC_KEY && key === env.SYNC_KEY;
     };
 
-    // ===== Preflight (CORS) untuk endpoint API =====
-    // (biar assets/html gak ikut-ikutan aneh)
-    if (request.method === "OPTIONS" && url.pathname.startsWith("/kv/")) {
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-
-    // ===== Routes API =====
+    // ===== Routes =====
+    // GET /ping  (tanpa auth)
     if (url.pathname === "/ping") {
       return json({
         ok: true,
         worker: "datahutang",
         hasKV: !!env.HUTANG_KV,
-        hasAssets: !!env.ASSETS,
         time: new Date().toISOString(),
       });
     }
 
-    // GET /kv/exists?wa=08xxxx  (public)
-    if (url.pathname === "/kv/exists") {
-      const wa = normWA(url.searchParams.get("wa"));
-      if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
-
-      const key = `wa:${wa}`;
-      const val = await env.HUTANG_KV.get(key);
-      return json({ success: true, found: !!val, key });
-    }
-
-    // GET /kv/public?wa=08xxxx (public safe fields)
-    if (url.pathname === "/kv/public") {
-      const wa = normWA(url.searchParams.get("wa"));
-      if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
-
-      const key = `wa:${wa}`;
-      const val = await env.HUTANG_KV.get(key);
-      if (!val) return json({ success: true, found: false, key });
-
-      let parsed = null;
-      try {
-        parsed = JSON.parse(val);
-      } catch {}
-
-      const safe =
-        parsed && typeof parsed === "object"
-          ? {
-              schema: parsed.schema ?? 1,
-              updatedAt: parsed.updatedAt ?? null,
-              id: parsed.id ?? null,
-              nama: String(parsed.nama ?? ""),
-              nomor: String(parsed.nomor ?? wa),
-              transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
-            }
-          : {};
-
-      return json({ success: true, found: true, key, value: safe });
-    }
-
-    // PRIVATE endpoints (auth)
+    // GET /kv/get?wa=08xxxx  (butuh auth)
     if (url.pathname === "/kv/get") {
       if (!requireAuth()) return json({ success: false, error: "UNAUTHORIZED" }, 401);
 
@@ -104,14 +66,13 @@ export default {
       const val = await env.HUTANG_KV.get(key);
       if (!val) return json({ success: true, found: false, key });
 
+      // val sudah berupa string JSON (dari index)
       let parsed = null;
-      try {
-        parsed = JSON.parse(val);
-      } catch {}
-
+      try { parsed = JSON.parse(val); } catch {}
       return json({ success: true, found: true, key, value: parsed ?? val });
     }
 
+    // PUT /kv/put?wa=08xxxx  body: JSON user (butuh auth)
     if (url.pathname === "/kv/put") {
       if (!requireAuth()) return json({ success: false, error: "UNAUTHORIZED" }, 401);
       if (request.method !== "PUT" && request.method !== "POST") {
@@ -121,35 +82,44 @@ export default {
       const wa = normWA(url.searchParams.get("wa"));
       if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
 
-      let body;
+      let bodyText = "";
       try {
-        body = await request.json();
+        bodyText = await request.text();
+      } catch {
+        return json({ success: false, error: "BODY_READ_FAIL" }, 400);
+      }
+
+      if (!bodyText) return json({ success: false, error: "BODY_EMPTY" }, 400);
+
+      // Validasi JSON
+      let obj = null;
+      try {
+        obj = JSON.parse(bodyText);
       } catch {
         return json({ success: false, error: "BODY_NOT_JSON" }, 400);
       }
 
-      const obj = {
-        ...(body && typeof body === "object" ? body : {}),
+      // Paksa nomor sama dengan query (biar rapih)
+      obj = {
+        ...(obj && typeof obj === "object" ? obj : {}),
         nomor: wa,
         updatedAt: Date.now(),
-        schema: body?.schema ?? 1,
+        schema: obj?.schema ?? 1,
       };
 
       const key = `wa:${wa}`;
+
       await env.HUTANG_KV.put(key, JSON.stringify(obj));
-      return json({ success: true, key, saved: true });
+      return json({ success: true, key, saved: true, txCount: Array.isArray(obj.transactions) ? obj.transactions.length : 0 });
     }
 
-    // ===== Static Assets fallback =====
-    // Semua request selain /kv/* dan /ping akan dilayani dari public/
-    if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
-      return env.ASSETS.fetch(request);
+    // Default root: info (tanpa auth)
+    if (url.pathname === "/" || url.pathname === "/") {
+      return text(
+        `datahutang worker OK\n\nUse:\n- GET  /ping\n- GET  /kv/get?wa=08xxxx   (header: X-Sync-Key)\n- PUT  /kv/put?wa=08xxxx   (header: X-Sync-Key, body JSON)\n`
+      );
     }
 
-    // Kalau assets bener-bener ga kebinding (harusnya nggak terjadi kalau toml benar)
-    return text(
-      'Assets not available. Pastikan wrangler.toml punya:\n\n[assets]\nbinding = "ASSETS"\ndirectory = "public"\n\nDan folder "public/" berisi index.html dll. Lalu deploy ulang.',
-      500
-    );
+    return json({ success: false, error: "NOT_FOUND" }, 404);
   },
 };
