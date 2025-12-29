@@ -293,7 +293,7 @@ document.addEventListener("keydown", (e) => {
     setTotalSimple(totalTerima, totalBerikan);
     renderRows(mapped);
 
-    setStatus("OK");
+    setStatus("");
   } catch (e) {
     $("tbody").innerHTML = `<tr><td colspan="3" class="emptyRow">Gagal memuat data.</td></tr>`;
     setStatus(`Error: ${String(e.message || e)}`, true);
