@@ -30,24 +30,13 @@
     }
 
     .topbar{
-      position: sticky; top:0; z-index:10;
-      background: linear-gradient(180deg, rgba(30,136,229,.98), rgba(30,136,229,.92));
-      color:#fff;
-      padding: 12px 12px;
-      display:flex;
-      align-items:center;
-      gap: 10px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.25);
-    }
-    .back{
-      width:40px;height:40px;border-radius:999px;border:0;
-      background: rgba(255,255,255,.15);
-      color:#fff;
-      font-size:18px;
-      display:grid;place-items:center;
-      cursor:pointer;
-      flex:0 0 auto;
-    }
+  background: linear-gradient(
+    180deg,
+    rgba(18,26,41,.98),
+    rgba(18,26,41,.92)
+  );
+}
+    
     .avatar{
       width:40px;height:40px;border-radius:999px;
       background: rgba(255,255,255,.18);
@@ -287,7 +276,7 @@
 
 <body>
   <header class="topbar">
-    <button class="back" id="btnBack" aria-label="Kembali">←</button>
+    
     <div class="avatar" id="avatar">?</div>
     <div class="titleWrap">
       <p class="name" id="namaHeader">Memuat...</p>
