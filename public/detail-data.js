@@ -43,37 +43,25 @@ function escapeHtml(s){
 
 function toDateMs(any) {
   if (any === null || any === undefined || any === "") return NaN;
-
   if (typeof any === "number") return any < 1e12 ? any * 1000 : any;
 
   const s = String(any).trim();
   const d = new Date(s);
   if (!isNaN(d.getTime())) return d.getTime();
 
-  // parse "29 Des 2025"
   const m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
   if (m) {
     const day = Number(m[1]);
     const monStr = m[2].toLowerCase();
     const year = Number(m[3]);
     const map = {
-      jan:0, januari:0,
-      feb:1, februari:1,
-      mar:2, maret:2,
-      apr:3, april:3,
-      mei:4,
-      jun:5, juni:5,
-      jul:6, juli:6,
-      agu:7, agustus:7,
-      sep:8, september:8,
-      okt:9, oktober:9,
-      nov:10, november:10,
-      des:11, desember:11
+      jan:0, januari:0, feb:1, februari:1, mar:2, maret:2, apr:3, april:3,
+      mei:4, jun:5, juni:5, jul:6, juli:6, agu:7, agustus:7, sep:8, september:8,
+      okt:9, oktober:9, nov:10, november:10, des:11, desember:11
     };
     const mon = map[monStr];
     if (mon !== undefined) return new Date(year, mon, day).getTime();
   }
-
   return NaN;
 }
 
@@ -85,7 +73,6 @@ function dateLabelFromMs(ms){
 function mapTx(tx) {
   const amount = Number(pick(tx, ["amount", "nominal", "nilai"], NaN));
   const typeRaw = String(pick(tx, ["type", "jenis", "kategori"], "")).toLowerCase();
-
   const note = String(pick(tx, ["note", "keterangan", "nama", "by", "from"], "") || "").trim();
 
   const dateVal = pick(tx, ["ts", "time", "createdAt", "date", "tanggal"], "");
@@ -102,59 +89,6 @@ function mapTx(tx) {
     berikan: isBerikan ? amount : null,
     unknownAmount: (!isTerima && !isBerikan) ? amount : null
   };
-}
-
-function renderRows(rows) {
-  const tbody = $("tbody");
-  tbody.innerHTML = "";
-
-  if (!Array.isArray(rows) || rows.length === 0) {
-    tbody.innerHTML = `<div class="empty">Belum ada transaksi.</div>`;
-    return;
-  }
-
-  for (const r of rows) {
-    const terimaVal = r.terima ?? null;
-    const berikanVal = r.berikan ?? null;
-
-    const fallbackBerikan =
-      (terimaVal === null && berikanVal === null && typeof r.unknownAmount === "number" && isFinite(r.unknownAmount))
-        ? r.unknownAmount
-        : null;
-
-    const terimaText = (typeof terimaVal === "number" && isFinite(terimaVal)) ? formatIDR(terimaVal) : "-";
-    const berikanText = (typeof berikanVal === "number" && isFinite(berikanVal)) ? formatIDR(berikanVal)
-                      : (typeof fallbackBerikan === "number" && isFinite(fallbackBerikan)) ? formatIDR(fallbackBerikan)
-                      : "-";
-
-    const terimaClass = (terimaText !== "-") ? "amt green" : "amt muted";
-    const berikanClass = (berikanText !== "-") ? "amt red" : "amt muted";
-
-    const hasNote = !!(r.note && r.note.trim());
-    const noteClass = hasNote ? "dateSub" : "dateSub empty";
-
-    const el = document.createElement("div");
-    el.className = "row";
-    el.innerHTML = `
-      <div class="td">
-        <div class="dateCell">
-          <div class="dateMain">${escapeHtml(r.dateText)}</div>
-          <div class="${noteClass}">${hasNote ? escapeHtml(r.note) : ""}</div>
-        </div>
-      </div>
-      <div class="td ${terimaClass}">${escapeHtml(terimaText)}</div>
-      <div class="td ${berikanClass}">${escapeHtml(berikanText)}</div>
-    `;
-    tbody.appendChild(el);
-  }
-}
-
-async function fetchKVGet(wa) {
-  const url = `${API_BASE}/kv/get?wa=${encodeURIComponent(wa)}`;
-  const res = await fetch(url, { headers: { "X-Sync-Key": SYNC_KEY } });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`);
-  return data;
 }
 
 function setTotalSimple(totalTerima, totalBerikan){
@@ -180,17 +114,66 @@ function setTotalSimple(totalTerima, totalBerikan){
   }
 }
 
+function renderRows(rows){
+  const tbody = $("tbody");
+  tbody.innerHTML = "";
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="empty">Belum ada transaksi.</td></tr>`;
+    return;
+  }
+
+  for (const r of rows) {
+    const terimaVal = r.terima ?? null;
+    const berikanVal = r.berikan ?? null;
+
+    const fallbackBerikan =
+      (terimaVal === null && berikanVal === null && typeof r.unknownAmount === "number" && isFinite(r.unknownAmount))
+        ? r.unknownAmount
+        : null;
+
+    const terimaText = (typeof terimaVal === "number" && isFinite(terimaVal)) ? formatIDR(terimaVal) : "-";
+    const berikanText = (typeof berikanVal === "number" && isFinite(berikanVal)) ? formatIDR(berikanVal)
+                      : (typeof fallbackBerikan === "number" && isFinite(fallbackBerikan)) ? formatIDR(fallbackBerikan)
+                      : "-";
+
+    const terimaClass = (terimaText !== "-") ? "amt green" : "amt muted";
+    const berikanClass = (berikanText !== "-") ? "amt red" : "amt muted";
+
+    const hasNote = !!(r.note && r.note.trim());
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <div class="dateMain">${escapeHtml(r.dateText)}</div>
+        <div class="dateSub ${hasNote ? "" : "empty"}">${hasNote ? escapeHtml(r.note) : ""}</div>
+      </td>
+      <td><span class="${terimaClass}">${escapeHtml(terimaText)}</span></td>
+      <td><span class="${berikanClass}">${escapeHtml(berikanText)}</span></td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+async function fetchKVGet(wa) {
+  const url = `${API_BASE}/kv/get?wa=${encodeURIComponent(wa)}`;
+  const res = await fetch(url, { headers: { "X-Sync-Key": SYNC_KEY } });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`);
+  return data;
+}
+
 $("btnBack").addEventListener("click", () => history.back());
 
 (async () => {
   const wa = normWA(getParam("wa"));
 
   if (!wa) {
-    $("tbody").innerHTML = `<div class="empty">Nomor tidak valid.</div>`;
+    $("tbody").innerHTML = `<tr><td colspan="3" class="empty">Nomor tidak valid.</td></tr>`;
     return setStatus("Nomor tidak valid (parameter ?wa=08xxxx).", true);
   }
   if (!SYNC_KEY || SYNC_KEY === "ISI_SYNC_KEY_KAMU_DI_SINI") {
-    $("tbody").innerHTML = `<div class="empty">SYNC_KEY belum diisi.</div>`;
+    $("tbody").innerHTML = `<tr><td colspan="3" class="empty">SYNC_KEY belum diisi.</td></tr>`;
     return setStatus("SYNC_KEY belum diisi di config.js", true);
   }
 
@@ -205,8 +188,8 @@ $("btnBack").addEventListener("click", () => history.back());
     if (!resp.found) throw new Error("Data tidak ditemukan di KV.");
 
     const obj = resp.value || {};
-
     const nama = pick(obj, ["nama", "name", "username"], "") || wa;
+
     $("namaHeader").textContent = nama;
     $("avatar").textContent = String(nama).trim().slice(0, 1).toUpperCase() || "?";
 
@@ -232,10 +215,9 @@ $("btnBack").addEventListener("click", () => history.back());
 
     setTotalSimple(totalTerima, totalBerikan);
     renderRows(mapped);
-
     setStatus("OK");
   } catch (e) {
-    $("tbody").innerHTML = `<div class="empty">Gagal memuat data.</div>`;
+    $("tbody").innerHTML = `<tr><td colspan="3" class="empty">Gagal memuat data.</td></tr>`;
     setStatus(`Error: ${String(e.message || e)}`, true);
   }
 })();
