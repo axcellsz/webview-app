@@ -146,7 +146,7 @@ function openModalByIndex(idx){
   if (!r) return;
 
   // tanggal + jam (kalau ada)
-  $("mTanggal").textContent = dateTimeLabel(r.ms);
+  $("mTanggal").innerHTML = dateTimeLabel(r.ms);
 
   // jenis
   const isTerima = (r.kind === "terima");
