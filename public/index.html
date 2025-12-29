@@ -3,323 +3,37 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cek Hutang</title>
-
+  <title>Masuk - Cek Hutang</title>
   <style>
-    :root{
-      --bg1:#0b1220;
-      --bg2:#0e1b33;
-      --card: rgba(255,255,255,.08);
-      --card2: rgba(255,255,255,.10);
-      --text:#eaf0ff;
-      --muted: rgba(234,240,255,.72);
-      --line: rgba(255,255,255,.14);
-      --shadow: 0 18px 50px rgba(0,0,0,.35);
-      --radius: 18px;
-      --radius2: 14px;
-    }
-
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color:var(--text);
-      background:
-        radial-gradient(1200px 600px at 10% 10%, rgba(93,169,255,.25), transparent 55%),
-        radial-gradient(900px 500px at 90% 25%, rgba(180,115,255,.22), transparent 55%),
-        radial-gradient(800px 500px at 50% 95%, rgba(71,255,196,.12), transparent 60%),
-        linear-gradient(180deg, var(--bg1), var(--bg2));
-      display:flex;
-      align-items:flex-start;
-      justify-content:center;
-      padding:22px 14px 40px;
-    }
-
-    .wrap{
-      width: min(720px, 100%);
-      position:relative;
-    }
-
-    .brand{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      margin-bottom:14px;
-      padding: 0 4px;
-    }
-    .logo{
-      width:46px; height:46px;
-      border-radius: 14px;
-      background:
-        radial-gradient(18px 18px at 30% 30%, rgba(255,255,255,.8), rgba(255,255,255,0)),
-        linear-gradient(135deg, rgba(93,169,255,.95), rgba(180,115,255,.9));
-      box-shadow: 0 14px 30px rgba(93,169,255,.18);
-      border: 1px solid rgba(255,255,255,.18);
-    }
-    .brand h1{
-      font-size: 22px;
-      margin:0;
-      line-height:1.1;
-      letter-spacing:.2px;
-    }
-    .brand p{
-      margin:2px 0 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .card{
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: linear-gradient(180deg, var(--card), rgba(255,255,255,.06));
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-
-    .cardHead{
-      padding:18px 18px 14px;
-      border-bottom: 1px solid rgba(255,255,255,.10);
-      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0));
-    }
-    .title{
-      margin:0;
-      font-size: 26px;
-      letter-spacing: .2px;
-    }
-    .subtitle{
-      margin:8px 0 0;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.4;
-    }
-
-    .cardBody{ padding:16px 18px 18px; }
-
-    .field label{
-      display:block;
-      font-size: 13px;
-      color: var(--muted);
-      margin: 0 0 8px;
-    }
-
-    .inputRow{
-      display:flex;
-      gap:10px;
-      align-items:stretch;
-      flex-wrap: wrap;
-    }
-
-    .input{
-      flex: 1 1 260px;
-      padding: 13px 14px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.16);
-      outline: none;
-      color: var(--text);
-      background: rgba(10,16,32,.55);
-      backdrop-filter: blur(10px);
-      font-size: 16px;
-      transition: .2s ease;
-    }
-    .input::placeholder{ color: rgba(234,240,255,.45); }
-    .input:focus{
-      border-color: rgba(93,169,255,.55);
-      box-shadow: 0 0 0 4px rgba(93,169,255,.15);
-    }
-
-    .btnRow{
-      display:flex;
-      gap:10px;
-      margin-top: 12px;
-      flex-wrap: wrap;
-    }
-
-    .btn{
-      border: 0;
-      border-radius: 14px;
-      padding: 12px 14px;
-      cursor:pointer;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: .2px;
-      transition: transform .06s ease, filter .2s ease, opacity .2s ease;
-      user-select:none;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btn:disabled{ opacity:.6; cursor:not-allowed; }
-
-    .btnPrimary{
-      background: linear-gradient(135deg, rgba(93,169,255,.95), rgba(180,115,255,.92));
-      color: #061022;
-      box-shadow: 0 14px 28px rgba(93,169,255,.18);
-    }
-    .btnGhost{
-      background: rgba(255,255,255,.08);
-      color: var(--text);
-      border: 1px solid rgba(255,255,255,.14);
-    }
-
-    .status{
-      margin: 12px 0 0;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.35;
-      display:flex;
-      gap:10px;
-      align-items:flex-start;
-    }
-    .dot{
-      width:10px; height:10px; border-radius: 999px;
-      background: rgba(255,255,255,.35);
-      margin-top: 4px;
-      flex: 0 0 auto;
-    }
-    .status.ok .dot{ background: rgba(71,255,196,.85); }
-    .status.err .dot{ background: rgba(255,98,121,.9); }
-    .status.ok{ color: rgba(234,240,255,.9); border-color: rgba(71,255,196,.25); }
-    .status.err{ color: rgba(255,210,216,.95); border-color: rgba(255,98,121,.25); }
-
-    .result{
-      margin-top: 14px;
-      display:none;
-      gap:12px;
-      flex-direction: column;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .box{
-      border-radius: var(--radius2);
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      padding: 14px;
-    }
-    .box h3{
-      margin:0 0 8px;
-      font-size: 13px;
-      color: var(--muted);
-      font-weight: 700;
-      letter-spacing: .2px;
-      text-transform: uppercase;
-    }
-    .val{
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: .2px;
-    }
-    .meta{
-      margin-top: 6px;
-      color: rgba(234,240,255,.65);
-      font-size: 12.5px;
-    }
-
-    .jsonTitle{
-      margin: 4px 0 6px;
-      font-size: 13px;
-      color: var(--muted);
-      font-weight: 700;
-      letter-spacing: .2px;
-      text-transform: uppercase;
-    }
-
-    pre{
-      margin:0;
-      border-radius: var(--radius2);
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(7,10,18,.65);
-      padding: 12px;
-      overflow:auto;
-      font-size: 12.5px;
-      line-height: 1.45;
-      color: rgba(234,240,255,.92);
-    }
-
-    .footer{
-      margin-top: 14px;
-      color: rgba(234,240,255,.55);
-      font-size: 12.5px;
-      text-align:center;
-      padding: 0 6px;
-    }
-
-    @media (max-width: 640px){
-      .title{ font-size: 22px; }
-      .grid{ grid-template-columns: 1fr; }
-    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; background:#0b1220; color:#eaf0ff;}
+    .wrap{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:18px;}
+    .card{width:min(420px,100%); padding:18px; border-radius:16px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06)}
+    h1{margin:0 0 10px; font-size:20px}
+    .muted{color:rgba(234,240,255,.7); font-size:13px; margin:0 0 14px}
+    input{width:100%; padding:13px 14px; border-radius:14px; border:1px solid rgba(255,255,255,.16); outline:none; background:rgba(10,16,32,.55); color:#eaf0ff; font-size:16px;}
+    input:focus{border-color:rgba(93,169,255,.55); box-shadow:0 0 0 4px rgba(93,169,255,.12);}
+    button{margin-top:12px; width:100%; padding:12px 14px; border:0; border-radius:14px; font-weight:800; cursor:pointer;
+      background:linear-gradient(135deg, rgba(93,169,255,.95), rgba(180,115,255,.92)); color:#061022; font-size:16px;}
+    button:disabled{opacity:.6; cursor:not-allowed}
+    .status{margin-top:12px; font-size:13px; color:rgba(234,240,255,.75)}
+    .err{color:#ffb3be}
   </style>
 </head>
-
 <body>
   <div class="wrap">
+    <div class="card">
+      <h1>Cek Data Hutang</h1>
+      <p class="muted">Masukkan nomor WA format <b>08xxxx</b>.</p>
 
-    <div class="brand">
-      <div class="logo" aria-hidden="true"></div>
-      <div>
-        <h1>DataHutang</h1>
-        <p>Cek hutang berdasarkan nomor WhatsApp</p>
-      </div>
-    </div>
+      <input id="nomor" inputmode="numeric" autocomplete="tel" placeholder="Contoh: 081234567890" />
+      <button id="btnMasuk">Masuk</button>
 
-    <section class="card">
-      <header class="cardHead">
-        <h2 class="title">Cek Data Hutang</h2>
-        <p class="subtitle">
-          Masukkan nomor WA format <b>08xxxx</b>, lalu klik <b>Masuk</b>.
-        </p>
-      </header>
-
-      <div class="cardBody">
-        <div class="field">
-          <label for="nomor">Input nomor</label>
-          <div class="inputRow">
-            <input id="nomor" class="input" inputmode="numeric" autocomplete="tel"
-                   placeholder="Contoh: 081234567890" />
-          </div>
-        </div>
-
-        <div class="btnRow">
-          <button id="btnMasuk" class="btn btnPrimary">Masuk</button>
-          <button id="btnReset" class="btn btnGhost" type="button">Reset</button>
-        </div>
-
-        <div id="status" class="status" style="display:none;">
-          <span class="dot"></span>
-          <div id="statusText">-</div>
-        </div>
-
-        <div id="hasil" class="result">
-          <div class="grid">
-            <div class="box">
-              <h3>Nomor</h3>
-              <div class="val" id="outNomor">-</div>
-              <div class="meta" id="outKey"></div>
-            </div>
-            <div class="box">
-              <h3>Total Hutang</h3>
-              <div class="val" id="outTotal">-</div>
-              <div class="meta" id="outMeta"></div>
-            </div>
-          </div>
-
-          <div class="jsonTitle">Detail Data (KV)</div>
-          <pre id="outJson">{}</pre>
-        </div>
-      </div>
-    </section>
-
-    <div class="footer">
-      Tips: simpan nomor dengan format 08xxxx di KV (key: <b>wa:08xxxx</b>)
+      <div id="status" class="status"></div>
     </div>
   </div>
 
+  <script src="./config.js"></script>
   <script src="./index.js"></script>
 </body>
 </html>
