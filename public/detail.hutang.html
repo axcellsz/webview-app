@@ -9,7 +9,6 @@
       --bg0:#07090d;
       --bg1:#0b0f17;
       --card:#0e1420cc;
-      --stroke:#1f2b3d;
       --text:#e9f0ff;
       --muted:#9bb0d1;
       --accent:#4ade80;
@@ -73,6 +72,7 @@
       border:1px solid rgba(255,255,255,.10);
       background: rgba(6,10,16,.55);
       margin-top: 12px;
+      width:100%;
     }
     .sum{
       font-size: 22px;
@@ -108,7 +108,7 @@
   <div class="wrap">
     <div class="card">
       <div class="top">
-        <button class="btn" onclick="history.back()">← Kembali</button>
+        <button class="btn" onclick="location.href='/'">← Kembali</button>
         <div style="text-align:right">
           <h1 id="nama">Detail Hutang</h1>
           <div class="meta" id="nomor">-</div>
@@ -179,21 +179,48 @@
       return div;
     }
 
+    function normWA(v){
+      const digits = String(v || "").replace(/[^\d]/g, "");
+      if (!digits.startsWith("08")) return "";
+      if (digits.length < 9) return "";
+      return digits;
+    }
+
+    async function safeJson(res){
+      const text = await res.text().catch(()=> "");
+      if (!text) return { ok:false, json:null, raw:"" };
+      try{
+        return { ok:true, json: JSON.parse(text), raw:text };
+      }catch{
+        return { ok:false, json:null, raw:text };
+      }
+    }
+
     async function load(){
-      if (!wa || !wa.startsWith("08") || wa.length < 9){
+      const nwa = normWA(wa);
+      if (!nwa){
         alert("Nomor tidak valid!");
         location.href = "/";
         return;
       }
 
-      const r = await fetch(`/kv/public?wa=${encodeURIComponent(wa)}`);
-      const j = await r.json().catch(()=>({}));
+      const res = await fetch(`/kv/public?wa=${encodeURIComponent(nwa)}`);
+      const parsed = await safeJson(res);
 
-      if (!r.ok){
-        alert("Gagal memuat data: " + (j?.error || ("HTTP " + r.status)));
+      if (!res.ok){
+        const msg = parsed.json?.error || ("HTTP " + res.status);
+        alert("Gagal memuat data: " + msg + (parsed.ok ? "" : " (Response bukan JSON)"));
         location.href = "/";
         return;
       }
+
+      if (!parsed.ok){
+        alert("Gagal memuat data: response bukan JSON dari server.");
+        location.href = "/";
+        return;
+      }
+
+      const j = parsed.json;
 
       if (!j.found){
         alert("Nomor anda belum memiliki catatan hutang!");
@@ -203,7 +230,7 @@
 
       const v = j.value || {};
       $nama.textContent = v.nama ? ("Hutang • " + v.nama) : "Detail Hutang";
-      $nomor.textContent = v.nomor ? v.nomor : wa;
+      $nomor.textContent = v.nomor ? v.nomor : nwa;
       $upd.textContent = v.updatedAt ? fmtDate(v.updatedAt) : "-";
 
       const tx = Array.isArray(v.transactions) ? v.transactions : [];
@@ -217,7 +244,6 @@
         return;
       }
 
-      // terbaru di atas
       tx.slice().sort((a,b)=>n0(b?.date)-n0(a?.date)).forEach(t => $list.appendChild(rowTx(t)));
     }
 
