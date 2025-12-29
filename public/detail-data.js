@@ -49,6 +49,7 @@ function toDateMs(any) {
   const d = new Date(s);
   if (!isNaN(d.getTime())) return d.getTime();
 
+  // parse "29 Des 2025"
   const m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
   if (m) {
     const day = Number(m[1]);
@@ -62,6 +63,7 @@ function toDateMs(any) {
     const mon = map[monStr];
     if (mon !== undefined) return new Date(year, mon, day).getTime();
   }
+
   return NaN;
 }
 
@@ -73,8 +75,8 @@ function dateLabelFromMs(ms){
 function mapTx(tx) {
   const amount = Number(pick(tx, ["amount", "nominal", "nilai"], NaN));
   const typeRaw = String(pick(tx, ["type", "jenis", "kategori"], "")).toLowerCase();
-  const note = String(pick(tx, ["note", "keterangan", "nama", "by", "from"], "") || "").trim();
 
+  const note = String(pick(tx, ["note", "keterangan", "nama", "by", "from"], "") || "").trim();
   const dateVal = pick(tx, ["ts", "time", "createdAt", "date", "tanggal"], "");
   const ms = toDateMs(dateVal);
 
@@ -105,10 +107,10 @@ function setTotalSimple(totalTerima, totalBerikan){
     totalEl.classList.add("red");
   } else if (saldo === 0) {
     totalEl.textContent = formatIDR(0);
-    totalEl.classList.add("white");
+    totalEl.classList.add("gray");
   } else {
     totalEl.textContent = formatIDR(0);
-    totalEl.classList.add("white");
+    totalEl.classList.add("gray");
     overpayBox.style.display = "block";
     overpayAmount.textContent = formatIDR(saldo);
   }
@@ -119,7 +121,7 @@ function renderRows(rows){
   tbody.innerHTML = "";
 
   if (!Array.isArray(rows) || rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="3" class="empty">Belum ada transaksi.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" class="emptyRow">Belum ada transaksi.</td></tr>`;
     return;
   }
 
@@ -137,8 +139,8 @@ function renderRows(rows){
                       : (typeof fallbackBerikan === "number" && isFinite(fallbackBerikan)) ? formatIDR(fallbackBerikan)
                       : "-";
 
-    const terimaClass = (terimaText !== "-") ? "amt green" : "amt muted";
-    const berikanClass = (berikanText !== "-") ? "amt red" : "amt muted";
+    const terimaClass = (terimaText !== "-") ? "amt terima" : "amt muted";
+    const berikanClass = (berikanText !== "-") ? "amt berikan" : "amt muted";
 
     const hasNote = !!(r.note && r.note.trim());
 
@@ -169,11 +171,11 @@ $("btnBack").addEventListener("click", () => history.back());
   const wa = normWA(getParam("wa"));
 
   if (!wa) {
-    $("tbody").innerHTML = `<tr><td colspan="3" class="empty">Nomor tidak valid.</td></tr>`;
+    $("tbody").innerHTML = `<tr><td colspan="3" class="emptyRow">Nomor tidak valid.</td></tr>`;
     return setStatus("Nomor tidak valid (parameter ?wa=08xxxx).", true);
   }
   if (!SYNC_KEY || SYNC_KEY === "ISI_SYNC_KEY_KAMU_DI_SINI") {
-    $("tbody").innerHTML = `<tr><td colspan="3" class="empty">SYNC_KEY belum diisi.</td></tr>`;
+    $("tbody").innerHTML = `<tr><td colspan="3" class="emptyRow">SYNC_KEY belum diisi.</td></tr>`;
     return setStatus("SYNC_KEY belum diisi di config.js", true);
   }
 
@@ -217,7 +219,7 @@ $("btnBack").addEventListener("click", () => history.back());
     renderRows(mapped);
     setStatus("OK");
   } catch (e) {
-    $("tbody").innerHTML = `<tr><td colspan="3" class="empty">Gagal memuat data.</td></tr>`;
+    $("tbody").innerHTML = `<tr><td colspan="3" class="emptyRow">Gagal memuat data.</td></tr>`;
     setStatus(`Error: ${String(e.message || e)}`, true);
   }
 })();
