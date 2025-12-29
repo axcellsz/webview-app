@@ -16,9 +16,17 @@ jobs:
 
       - run: npm i -g wrangler
 
+      - name: Debug folders
+        run: |
+          pwd
+          ls -la
+          ls -la webview-app || true
+
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        working-directory: webview-app
-        run: wrangler deploy --keep-vars
+        run: |
+          cd webview-app
+          ls -la
+          wrangler deploy --keep-vars
