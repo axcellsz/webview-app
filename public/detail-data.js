@@ -228,7 +228,7 @@ async function fetchKVGet(wa) {
 }
 
 /* ===== events ===== */
-$("btnBack").addEventListener("click", () => history.back());
+
 
 $("btnCloseModal").addEventListener("click", closeModal);
 $("modalOverlay").addEventListener("click", (e) => {
