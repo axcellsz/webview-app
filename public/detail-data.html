@@ -6,17 +6,19 @@
   <title>Detail Hutang</title>
   <style>
     :root{
-      --bg:#0b1220;
-      --card: rgba(255,255,255,.06);
-      --line: rgba(255,255,255,.12);
-      --text:#eaf0ff;
-      --muted: rgba(234,240,255,.7);
       --blue:#1e88e5;
-      --green:#4ade80;
-      --red:#ff6b81;
-      --colGreenBg: rgba(34,197,94,.12);
-      --radius: 16px;
+      --bg:#f4f6f9;
+      --card:#ffffff;
+      --line:#e7ebf0;
+      --text:#111827;
+      --muted:#6b7280;
+
+      --terimaBg:#dff7f2;
+      --terimaText:#0ea37f;
+
+      --berikanText:#c62828;
     }
+
     *{ box-sizing:border-box; }
     body{
       margin:0;
@@ -25,42 +27,36 @@
       color: var(--text);
     }
 
-    /* Top bar */
+    /* Topbar biru */
     .topbar{
-      position: sticky; top:0; z-index:5;
-      background: linear-gradient(180deg, rgba(30,136,229,.98), rgba(30,136,229,.92));
-      color: white;
+      position: sticky; top:0; z-index:10;
+      background: var(--blue);
+      color:#fff;
       padding: 12px 12px;
       display:flex;
       align-items:center;
       gap: 10px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      box-shadow: 0 8px 18px rgba(0,0,0,.18);
     }
     .back{
-      width: 40px; height: 40px;
-      border-radius: 999px;
-      border: 0;
-      background: rgba(255,255,255,.15);
-      color: white;
+      width:40px;height:40px;border-radius:999px;border:0;
+      background: rgba(255,255,255,.18);
+      color:#fff;
+      font-size:18px;
+      display:grid;place-items:center;
       cursor:pointer;
-      display:grid;
-      place-items:center;
-      font-size: 18px;
-      flex: 0 0 auto;
+      flex:0 0 auto;
     }
     .avatar{
-      width: 40px; height: 40px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.18);
-      display:grid;
-      place-items:center;
-      font-weight: 900;
-      letter-spacing: .3px;
-      flex: 0 0 auto;
+      width:40px;height:40px;border-radius:999px;
+      background: rgba(255,255,255,.22);
+      display:grid;place-items:center;
+      font-weight:900;
+      flex:0 0 auto;
     }
-    .titleWrap{ line-height:1.1; min-width: 0; }
-    .name{ font-size: 16px; font-weight: 900; margin:0; }
-    .sub{ font-size: 12px; opacity:.9; margin:3px 0 0; }
+    .titleWrap{ min-width:0; line-height:1.1; }
+    .name{ margin:0; font-size:16px; font-weight:900; }
+    .sub{ margin:3px 0 0; font-size:12px; opacity:.95; }
 
     .wrap{
       max-width: 920px;
@@ -68,102 +64,103 @@
       padding: 12px;
     }
 
-    /* Summary SIMPLE */
-    .summarySimple{
-      margin-top: 12px;
-      border: 1px solid var(--line);
+    /* Total hutang simple */
+    .totalCard{
       background: var(--card);
-      border-radius: var(--radius);
-      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 10px;
     }
-    .summarySimple .label{
-      margin: 0;
-      font-size: 13px;
+    .label{
+      margin:0;
+      font-size:12px;
+      letter-spacing:.3px;
+      text-transform:uppercase;
       color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .3px;
+      font-weight:800;
     }
-    .summarySimple .amount{
-      margin: 6px 0 0;
-      font-size: 26px;
-      font-weight: 950;
+    .amount{
+      margin:6px 0 0;
+      font-size:28px;
+      font-weight:1000;
     }
-    .amount.red{ color: var(--red); }
-    .amount.green{ color: var(--green); }
-    .amount.white{ color: var(--text); }
+    .amount.red{ color: var(--berikanText); }
+    .amount.green{ color: var(--terimaText); }
+    .amount.gray{ color: var(--text); }
 
     .overpay{
-      margin-top: 14px;
-      padding-top: 12px;
-      border-top: 1px dashed rgba(255,255,255,.18);
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--line);
     }
 
-    /* Table Card */
+    /* Tabel */
     .tableCard{
       margin-top: 12px;
-      border: 1px solid var(--line);
       background: var(--card);
-      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      border-radius: 14px;
       overflow:hidden;
     }
 
     table{
-      width: 100%;
+      width:100%;
       border-collapse: collapse;
-      table-layout: fixed; /* ✅ ini yang bikin kolom benar-benar sejajar */
+      table-layout: fixed; /* kolom selalu sejajar */
     }
+
+    /* lebar kolom mirip screenshot */
+    col.colTanggal{ width: 44%; }
+    col.colTerima{ width: 28%; }
+    col.colBerikan{ width: 28%; }
 
     thead th{
-      text-align: left;
-      font-weight: 900;
-      color: rgba(255,255,255,.92);
-      background: rgba(255,255,255,.06);
-      border-bottom: 1px solid rgba(255,255,255,.10);
       padding: 12px 12px;
       font-size: 14px;
+      color: #374151;
+      font-weight: 900;
+      background: #f7f8fb;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
     }
-
-    /* set lebar kolom tetap */
-    col.colTanggal{ width: 46%; }
-    col.colTerima{ width: 27%; }
-    col.colBerikan{ width: 27%; }
+    thead th:nth-child(2){ background: var(--terimaBg); text-align:center; }
+    thead th:nth-child(3){ text-align:center; }
 
     tbody tr{
-      border-bottom: 1px solid rgba(255,255,255,.08);
-      height: 96px; /* ✅ tinggi baris fix */
+      border-bottom: 1px solid var(--line);
+      height: 86px;          /* tinggi baris konsisten */
     }
-    tbody tr:last-child{ border-bottom: 0; }
+    tbody tr:last-child{ border-bottom:0; }
 
     tbody td{
       padding: 12px 12px;
-      vertical-align: middle; /* ✅ sejajar tengah */
+      vertical-align: middle;
       font-size: 14px;
-      min-width: 0;
+      min-width:0;
+      background: #fff;
     }
-
-    /* background kolom terima */
-    thead th:nth-child(2),
     tbody td:nth-child(2){
-      background: var(--colGreenBg);
-      text-align: center;
+      background: var(--terimaBg);
+      text-align:center;
     }
-
-    thead th:nth-child(3),
     tbody td:nth-child(3){
-      text-align: center;
+      text-align:center;
     }
 
     .dateMain{
       font-weight: 900;
+      color:#111827;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
+    /* keterangan max 2 baris, rapi */
     .dateSub{
       margin-top: 6px;
-      color: var(--muted);
       font-size: 12px;
+      color: var(--muted);
       font-weight: 800;
       line-height: 1.2;
 
@@ -175,29 +172,26 @@
     }
     .dateSub.empty{ display:none; }
 
+    /* Angka: jangan ellipsis, biar ga kepotong */
     .amt{
-      font-weight: 950;
+      font-weight: 1000;
       font-size: 16px;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display:inline-block;
-      max-width: 100%;
     }
-    .amt.green{ color: #63f29a; }
-    .amt.red{ color: #ff7a8f; }
-    .amt.muted{ color: rgba(234,240,255,.35); }
+    .amt.terima{ color: var(--terimaText); }
+    .amt.berikan{ color: var(--berikanText); }
+    .amt.muted{ color:#9ca3af; font-weight: 900; }
 
     .status{
-      margin-top: 10px;
+      margin-top:10px;
       font-size: 13px;
       color: var(--muted);
     }
-    .status.err{ color: #ffb3be; }
+    .status.err{ color: #b91c1c; }
 
-    .empty{
-      padding: 16px 12px;
-      color: rgba(234,240,255,.6);
+    .emptyRow{
+      padding: 14px 12px;
+      color: var(--muted);
       font-size: 14px;
     }
   </style>
@@ -214,10 +208,9 @@
   </header>
 
   <main class="wrap">
-    <!-- SIMPLE TOTAL -->
-    <section class="summarySimple">
+    <section class="totalCard">
       <p class="label">Total hutang anda</p>
-      <p id="totalHutang" class="amount">-</p>
+      <p id="totalHutang" class="amount gray">-</p>
 
       <div id="overpayBox" class="overpay" style="display:none;">
         <p class="label">Kelebihan bayar</p>
@@ -225,7 +218,6 @@
       </div>
     </section>
 
-    <!-- TABLE -->
     <section class="tableCard">
       <table>
         <colgroup>
@@ -236,12 +228,12 @@
         <thead>
           <tr>
             <th>Tanggal</th>
-            <th style="text-align:center;">Terima</th>
-            <th style="text-align:center;">Berikan</th>
+            <th>Terima</th>
+            <th>Berikan</th>
           </tr>
         </thead>
         <tbody id="tbody">
-          <tr><td colspan="3" class="empty">Memuat data...</td></tr>
+          <tr><td colspan="3" class="emptyRow">Memuat data...</td></tr>
         </tbody>
       </table>
     </section>
