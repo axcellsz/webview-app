@@ -2,11 +2,8 @@ name = "datahutang"
 main = "worker.js"
 compatibility_date = "2025-12-01"
 
-# ===== KV BINDING =====
 kv_namespaces = [
   { binding = "HUTANG_KV", id = "8f1f653045574e5bae3b0ef0aca0d7b0" }
 ]
 
-# ===== STATIC ASSETS =====
-[assets]
-directory = "./public"
+assets = { directory = "./public" }
