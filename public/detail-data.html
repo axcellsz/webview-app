@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Detail Hutang</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; background:#0b1220; color:#eaf0ff;}
+    .wrap{max-width:860px; margin:0 auto; padding:18px;}
+    .top{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;}
+    .title{margin:0; font-size:18px}
+    .sub{margin:6px 0 0; color:rgba(234,240,255,.7); font-size:13px}
+    .btn{border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#eaf0ff; padding:10px 12px; border-radius:12px; cursor:pointer;}
+    .card{border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); border-radius:16px; padding:14px;}
+    .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;}
+    .box{border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.05); border-radius:14px; padding:12px;}
+    .k{font-size:12px; color:rgba(234,240,255,.7); margin:0 0 6px; text-transform:uppercase; letter-spacing:.2px}
+    .v{font-size:18px; font-weight:800; margin:0}
+    pre{margin:0; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:rgba(7,10,18,.65); padding:12px; overflow:auto; font-size:12.5px; line-height:1.45;}
+    .status{margin:10px 0 0; color:rgba(234,240,255,.75); font-size:13px}
+    .err{color:#ffb3be}
+    @media (max-width:640px){ .grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1 class="title">Detail Data Hutang</h1>
+        <p class="sub" id="subtitle">Memuat...</p>
+      </div>
+      <button class="btn" id="btnBack">Kembali</button>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <div class="box">
+          <p class="k">Nomor</p>
+          <p class="v" id="outNomor">-</p>
+        </div>
+        <div class="box">
+          <p class="k">Total Hutang</p>
+          <p class="v" id="outTotal">-</p>
+        </div>
+      </div>
+
+      <p class="k" style="margin:0 0 8px;">Data KV (JSON)</p>
+      <pre id="outJson">{}</pre>
+
+      <div id="status" class="status"></div>
+    </div>
+  </div>
+
+  <script src="./config.js"></script>
+  <script src="./detail-data.js"></script>
+</body>
+</html>
