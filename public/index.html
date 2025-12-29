@@ -9,7 +9,6 @@
       --bg0:#07090d;
       --bg1:#0b0f17;
       --card:#0e1420cc;
-      --stroke:#1f2b3d;
       --text:#e9f0ff;
       --muted:#9bb0d1;
       --accent:#4ade80;
@@ -18,7 +17,6 @@
       --shadow: 0 20px 60px rgba(0,0,0,.55);
       --radius: 18px;
     }
-
     *{ box-sizing:border-box; }
     html,body{ height:100%; }
     body{
@@ -29,10 +27,8 @@
         radial-gradient(900px 700px at 80% 30%, #12284b 0%, transparent 55%),
         linear-gradient(180deg, var(--bg0), var(--bg1));
       color:var(--text);
-      overflow:hidden; /* "fixed" */
+      overflow:hidden;
     }
-
-    /* layout fixed + selalu center */
     .wrap{
       height: 100svh;
       width: 100vw;
@@ -43,7 +39,6 @@
       justify-content:center;
       gap:14px;
     }
-
     .top{
       position:absolute;
       top: 18px;
@@ -54,7 +49,6 @@
       justify-content:center;
       pointer-events:none;
     }
-
     .brand{
       display:inline-flex;
       align-items:center;
@@ -74,7 +68,6 @@
     }
     .brand strong{ letter-spacing:.2px; font-size:14px; }
     .brand span{ color:var(--muted); font-size:12px; }
-
     .card{
       width: min(420px, 100%);
       background: var(--card);
@@ -84,7 +77,6 @@
       padding: 18px;
       backdrop-filter: blur(14px);
     }
-
     .hero{
       display:flex;
       align-items:center;
@@ -97,27 +89,9 @@
       background: linear-gradient(180deg, rgba(74,222,128,.20), rgba(34,197,94,.10));
       border:1px solid rgba(34,197,94,.25);
     }
-    .badge svg{ opacity:.95 }
-    .title{
-      margin:0;
-      font-size: 20px;
-      line-height:1.2;
-      letter-spacing:.2px;
-    }
-    .sub{
-      margin:4px 0 0 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height:1.4;
-    }
-
-    .field{
-      margin-top: 14px;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-
+    .title{ margin:0; font-size: 20px; line-height:1.2; letter-spacing:.2px; }
+    .sub{ margin:4px 0 0 0; color: var(--muted); font-size: 13px; line-height:1.4; }
+    .field{ margin-top: 14px; display:flex; flex-direction:column; gap:10px; }
     input{
       width:100%;
       padding: 14px 14px;
@@ -128,19 +102,12 @@
       outline: none;
       font-size: 15px;
       letter-spacing:.2px;
-      transition: border .2s, transform .08s;
     }
     input:focus{
       border-color: rgba(34,197,94,.45);
       box-shadow: 0 0 0 6px rgba(34,197,94,.12);
     }
-
-    .hint{
-      color: var(--muted);
-      font-size: 12px;
-      margin: 2px 2px 0 2px;
-    }
-
+    .hint{ color: var(--muted); font-size: 12px; margin: 2px 2px 0 2px; }
     button{
       width:100%;
       padding: 13px 14px;
@@ -152,7 +119,6 @@
       color: #06110a;
       background: linear-gradient(180deg, var(--accent), var(--accent2));
       box-shadow: 0 12px 30px rgba(34,197,94,.25);
-      transition: transform .08s ease, filter .2s ease;
     }
     button:active{ transform: translateY(1px); }
     button:disabled{
@@ -160,22 +126,12 @@
       cursor:not-allowed;
       filter: grayscale(35%);
     }
-
     .foot{
       margin-top: 12px;
       text-align:center;
       color: rgba(155,176,209,.75);
       font-size: 12px;
     }
-
-    .toast{
-      margin-top: 10px;
-      font-size: 12px;
-      color: rgba(233,240,255,.85);
-      display:none;
-    }
-    .toast.show{ display:block; }
-    .toast.err{ color: var(--danger); }
   </style>
 </head>
 <body>
@@ -198,7 +154,7 @@
           </svg>
         </div>
         <div>
-          <h1 class="title">Worker Aktif</h1>
+          <h1 class="title">AxStore</h1>
           <p class="sub">Masukkan nomor WhatsApp untuk melihat catatan hutang Anda.</p>
         </div>
       </div>
@@ -207,7 +163,6 @@
         <input id="wa" inputmode="numeric" autocomplete="off" placeholder="Contoh: 0857xxxxxxxx" />
         <button id="btn">Masuk</button>
         <div class="hint">Format: harus mulai <b>08</b> dan minimal <b>9 digit</b>.</div>
-        <div id="toast" class="toast"></div>
       </div>
 
       <div class="foot">© AxStore • Data tersimpan di Cloudflare KV</div>
@@ -217,13 +172,6 @@
   <script>
     const $wa = document.getElementById("wa");
     const $btn = document.getElementById("btn");
-    const $toast = document.getElementById("toast");
-
-    function toast(msg, isErr=false){
-      $toast.textContent = msg;
-      $toast.className = "toast show" + (isErr ? " err" : "");
-      setTimeout(() => $toast.classList.remove("show"), 2200);
-    }
 
     function normWA(v){
       const digits = String(v || "").replace(/[^\d]/g, "");
@@ -232,11 +180,25 @@
       return digits;
     }
 
+    async function safeJson(res){
+      const text = await res.text().catch(()=> "");
+      if (!text) return { ok:false, json:null, raw:"" };
+      try{
+        return { ok:true, json: JSON.parse(text), raw:text };
+      }catch{
+        return { ok:false, json:null, raw:text };
+      }
+    }
+
     async function checkKV(wa){
-      const r = await fetch(`/kv/exists?wa=${encodeURIComponent(wa)}`, { method:"GET" });
-      const j = await r.json().catch(()=>({}));
-      if (!r.ok) throw new Error(j?.error || ("HTTP " + r.status));
-      return !!j.found;
+      const res = await fetch(`/kv/exists?wa=${encodeURIComponent(wa)}`, { method:"GET" });
+      const parsed = await safeJson(res);
+      if (!res.ok){
+        const msg = parsed.json?.error || ("HTTP " + res.status);
+        throw new Error(msg + (parsed.ok ? "" : " (Response bukan JSON)"));
+      }
+      if (!parsed.ok) throw new Error("Response bukan JSON dari server");
+      return !!parsed.json.found;
     }
 
     async function go(){
