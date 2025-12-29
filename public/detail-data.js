@@ -49,7 +49,6 @@ function toDateMs(any) {
   const d = new Date(s);
   if (!isNaN(d.getTime())) return d.getTime();
 
-  // parse "29 Des 2025"
   const m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
   if (m) {
     const day = Number(m[1]);
@@ -63,7 +62,6 @@ function toDateMs(any) {
     const mon = map[monStr];
     if (mon !== undefined) return new Date(year, mon, day).getTime();
   }
-
   return NaN;
 }
 
@@ -107,10 +105,10 @@ function setTotalSimple(totalTerima, totalBerikan){
     totalEl.classList.add("red");
   } else if (saldo === 0) {
     totalEl.textContent = formatIDR(0);
-    totalEl.classList.add("gray");
+    totalEl.classList.add("white");
   } else {
     totalEl.textContent = formatIDR(0);
-    totalEl.classList.add("gray");
+    totalEl.classList.add("white");
     overpayBox.style.display = "block";
     overpayAmount.textContent = formatIDR(saldo);
   }
@@ -129,6 +127,7 @@ function renderRows(rows){
     const terimaVal = r.terima ?? null;
     const berikanVal = r.berikan ?? null;
 
+    // fallback type tidak dikenali -> anggap berikan
     const fallbackBerikan =
       (terimaVal === null && berikanVal === null && typeof r.unknownAmount === "number" && isFinite(r.unknownAmount))
         ? r.unknownAmount
@@ -139,16 +138,18 @@ function renderRows(rows){
                       : (typeof fallbackBerikan === "number" && isFinite(fallbackBerikan)) ? formatIDR(fallbackBerikan)
                       : "-";
 
-    const terimaClass = (terimaText !== "-") ? "amt terima" : "amt muted";
-    const berikanClass = (berikanText !== "-") ? "amt berikan" : "amt muted";
+    const terimaClass = (terimaText !== "-") ? "amt green" : "amt muted";
+    const berikanClass = (berikanText !== "-") ? "amt red" : "amt muted";
 
     const hasNote = !!(r.note && r.note.trim());
+    const noteHtml = hasNote ? escapeHtml(r.note) : "";
+    const noteClass = hasNote ? "note" : "note empty";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>
         <div class="dateMain">${escapeHtml(r.dateText)}</div>
-        <div class="dateSub ${hasNote ? "" : "empty"}">${hasNote ? escapeHtml(r.note) : ""}</div>
+        <div class="${noteClass}">${noteHtml}</div>
       </td>
       <td><span class="${terimaClass}">${escapeHtml(terimaText)}</span></td>
       <td><span class="${berikanClass}">${escapeHtml(berikanText)}</span></td>
@@ -158,7 +159,9 @@ function renderRows(rows){
 }
 
 async function fetchKVGet(wa) {
-  const url = `${API_BASE}/kv/get?wa=${encodeURIComponent(wa)}`;
+  const base = (API_BASE && API_BASE.trim()) ? API_BASE.trim().replace(/\/$/, "") : "";
+  const url = `${base}/kv/get?wa=${encodeURIComponent(wa)}`;
+
   const res = await fetch(url, { headers: { "X-Sync-Key": SYNC_KEY } });
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.error || `HTTP_${res.status}`);
@@ -198,6 +201,7 @@ $("btnBack").addEventListener("click", () => history.back());
     const list = Array.isArray(obj.transactions) ? obj.transactions : [];
     const mapped = list.map(mapTx);
 
+    // sort terbaru dulu
     mapped.sort((a,b) => {
       const am = isFinite(a.ms) ? a.ms : -Infinity;
       const bm = isFinite(b.ms) ? b.ms : -Infinity;
