@@ -1,7 +1,8 @@
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
 
+    // ===== CORS (untuk endpoint API) =====
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET,PUT,POST,OPTIONS",
@@ -9,18 +10,29 @@ export default {
       "Access-Control-Max-Age": "86400",
     };
 
+    // Preflight
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    const json = (obj, status = 200) =>
+    const json = (obj, status = 200, extraHeaders = {}) =>
       new Response(JSON.stringify(obj, null, 2), {
         status,
-        headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          ...corsHeaders,
+          ...extraHeaders,
+        },
       });
 
-    const text = (t, status = 200) =>
-      new Response(t, { status, headers: { "Content-Type": "text/plain; charset=utf-8", ...corsHeaders } });
+    const text = (t, status = 200, extraHeaders = {}) =>
+      new Response(t, {
+        status,
+        headers: { "Content-Type": "text/plain; charset=utf-8", ...extraHeaders },
+      });
+
+    const hasKV = !!env.HUTANG_KV;
+    const hasAssets = !!env.ASSETS && typeof env.ASSETS.fetch === "function";
 
     const normWA = (wa) => {
       const digits = String(wa || "").replace(/[^\d]/g, "");
@@ -34,86 +46,125 @@ export default {
       return key && env.SYNC_KEY && key === env.SYNC_KEY;
     };
 
-    // --- routes
+    // ===== ROUTE: /ping =====
     if (url.pathname === "/ping") {
-      return json({ ok: true, worker: "datahutang", hasKV: !!env.HUTANG_KV, hasAssets: !!env.ASSETS });
+      return json({
+        ok: true,
+        worker: "datahutang",
+        time: new Date().toISOString(),
+        hasKV,
+        hasAssets,
+      });
     }
 
-    if (url.pathname === "/kv/exists") {
-      const wa = normWA(url.searchParams.get("wa"));
-      if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
-      const key = `wa:${wa}`;
-      const val = await env.HUTANG_KV.get(key);
-      return json({ success: true, found: !!val, key });
-    }
-
-    if (url.pathname === "/kv/public") {
-      const wa = normWA(url.searchParams.get("wa"));
-      if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
-
-      const key = `wa:${wa}`;
-      const val = await env.HUTANG_KV.get(key);
-      if (!val) return json({ success: true, found: false, key });
-
-      let parsed = null;
-      try { parsed = JSON.parse(val); } catch {}
-
-      const safe = parsed && typeof parsed === "object" ? {
-        schema: parsed.schema ?? 1,
-        updatedAt: parsed.updatedAt ?? null,
-        id: parsed.id ?? null,
-        nama: String(parsed.nama ?? ""),
-        nomor: String(parsed.nomor ?? wa),
-        transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
-      } : {};
-
-      return json({ success: true, found: true, key, value: safe });
-    }
-
-    // PRIVATE endpoints (optional, tetap)
-    if (url.pathname === "/kv/get") {
-      if (!requireAuth()) return json({ success: false, error: "UNAUTHORIZED" }, 401);
-      const wa = normWA(url.searchParams.get("wa"));
-      if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
-      const key = `wa:${wa}`;
-      const val = await env.HUTANG_KV.get(key);
-      if (!val) return json({ success: true, found: false, key });
-      let parsed = null;
-      try { parsed = JSON.parse(val); } catch {}
-      return json({ success: true, found: true, key, value: parsed ?? val });
-    }
-
-    if (url.pathname === "/kv/put") {
-      if (!requireAuth()) return json({ success: false, error: "UNAUTHORIZED" }, 401);
-      if (request.method !== "PUT" && request.method !== "POST") {
-        return json({ success: false, error: "METHOD_NOT_ALLOWED" }, 405);
-      }
-      const wa = normWA(url.searchParams.get("wa"));
-      if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
-
-      let body;
-      try { body = await request.json(); } catch {
-        return json({ success: false, error: "BODY_NOT_JSON" }, 400);
+    // ===== API ROUTES =====
+    // Semua endpoint API diawali /kv/
+    if (url.pathname.startsWith("/kv/")) {
+      if (!hasKV) {
+        return json(
+          { success: false, error: "KV_BINDING_MISSING", hint: "Cek wrangler.toml kv_namespaces binding=HUTANG_KV" },
+          500
+        );
       }
 
-      const obj = {
-        ...(body && typeof body === "object" ? body : {}),
-        nomor: wa,
-        updatedAt: Date.now(),
-        schema: body?.schema ?? 1,
-      };
+      // GET /kv/exists?wa=08xxxx  (public)
+      if (url.pathname === "/kv/exists") {
+        const wa = normWA(url.searchParams.get("wa"));
+        if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
+        const key = `wa:${wa}`;
+        const val = await env.HUTANG_KV.get(key);
+        return json({ success: true, found: !!val, key });
+      }
 
-      const key = `wa:${wa}`;
-      await env.HUTANG_KV.put(key, JSON.stringify(obj));
-      return json({ success: true, key, saved: true });
+      // GET /kv/public?wa=08xxxx (public)
+      if (url.pathname === "/kv/public") {
+        const wa = normWA(url.searchParams.get("wa"));
+        if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
+
+        const key = `wa:${wa}`;
+        const val = await env.HUTANG_KV.get(key);
+        if (!val) return json({ success: true, found: false, key });
+
+        let parsed = null;
+        try { parsed = JSON.parse(val); } catch {}
+
+        const safe =
+          parsed && typeof parsed === "object"
+            ? {
+                schema: parsed.schema ?? 1,
+                updatedAt: parsed.updatedAt ?? null,
+                id: parsed.id ?? null,
+                nama: String(parsed.nama ?? ""),
+                nomor: String(parsed.nomor ?? wa),
+                transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
+              }
+            : null;
+
+        return json({ success: true, found: true, key, value: safe ?? val });
+      }
+
+      // PRIVATE: GET /kv/get?wa=08xxxx (auth)
+      if (url.pathname === "/kv/get") {
+        if (!requireAuth()) return json({ success: false, error: "UNAUTHORIZED" }, 401);
+        const wa = normWA(url.searchParams.get("wa"));
+        if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
+
+        const key = `wa:${wa}`;
+        const val = await env.HUTANG_KV.get(key);
+        if (!val) return json({ success: true, found: false, key });
+
+        let parsed = null;
+        try { parsed = JSON.parse(val); } catch {}
+        return json({ success: true, found: true, key, value: parsed ?? val });
+      }
+
+      // PRIVATE: PUT/POST /kv/put?wa=08xxxx (auth)
+      if (url.pathname === "/kv/put") {
+        if (!requireAuth()) return json({ success: false, error: "UNAUTHORIZED" }, 401);
+        if (request.method !== "PUT" && request.method !== "POST") {
+          return json({ success: false, error: "METHOD_NOT_ALLOWED" }, 405);
+        }
+
+        const wa = normWA(url.searchParams.get("wa"));
+        if (!wa) return json({ success: false, error: "WA_INVALID" }, 400);
+
+        let body;
+        try {
+          body = await request.json();
+        } catch {
+          return json({ success: false, error: "BODY_NOT_JSON" }, 400);
+        }
+
+        const obj = {
+          ...(body && typeof body === "object" ? body : {}),
+          nomor: wa,
+          updatedAt: Date.now(),
+          schema: body?.schema ?? 1,
+        };
+
+        const key = `wa:${wa}`;
+        await env.HUTANG_KV.put(key, JSON.stringify(obj));
+        return json({
+          success: true,
+          key,
+          saved: true,
+          txCount: Array.isArray(obj.transactions) ? obj.transactions.length : 0,
+        });
+      }
+
+      return json({ success: false, error: "NOT_FOUND" }, 404);
     }
 
-    // --- assets fallback
-    if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+    // ===== ASSETS =====
+    // Kalau bukan /kv/* dan assets ada, serve static (index.html, detail-hutang.html, dll)
+    if (hasAssets) {
       return env.ASSETS.fetch(request);
     }
 
-    // kalau assets belum kebinding, jangan crash
-    return text("Assets binding belum aktif. Pastikan [assets] directory = \"public\" di wrangler.toml dan deploy ulang.", 500);
+    // fallback kalau assets binding belum aktif
+    return text(
+      "Assets binding belum aktif.\nPastikan wrangler.toml ada [assets] directory = \"./public\" dan file ada di folder public.\nLalu deploy ulang.",
+      500
+    );
   },
 };
