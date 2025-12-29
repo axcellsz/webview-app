@@ -127,40 +127,47 @@
     }
 
     .tbody .row{
-      display:grid;
-      grid-template-columns: 1.25fr .9fr .9fr; /* sama dengan header */
-      border-bottom: 1px solid rgba(255,255,255,.08);
-      align-items: stretch;
-    }
-    .tbody .row:last-child{ border-bottom:0; }
+    /* tinggi row dibuat fixed */
+.tbody .row{
+  height: 96px;              /* FIXED tinggi baris */
+}
 
-    /* tanggal + keterangan */
-    .dateMain{
-      font-weight: 900;
-      white-space: nowrap;           /* jangan turun baris */
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+/* isi kolom tanggal dirapikan */
+.dateCell{
+  display:flex;
+  flex-direction: column;
+  justify-content: center;   /* isi rata tengah dalam row */
+  height: 100%;
+}
 
-    /* Keterangan: selalu ada slot, max 2 baris, tidak boleh merusak tabel */
-    .dateSub{
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.2;
+.dateMain{
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-      display: -webkit-box;
-      -webkit-line-clamp: 2;         /* max 2 baris */
-      -webkit-box-orient: vertical;
-      overflow: hidden;              /* sisanya dipotong */
-      word-break: break-word;
-      min-height: calc(12px * 1.2 * 2); /* paksa tinggi konsisten 2 baris */
-    }
-    .dateSub.empty{
-      opacity: 0; /* tetap makan tempat tapi invisible */
-    }
+/* Keterangan max 2 baris, tapi TANPA min-height */
+.dateSub{
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
 
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+
+  min-height: 0;             /* penting: jangan paksa tinggi */
+}
+
+/* kalau kosong, tetap ada elemen tapi jangan bikin tinggi aneh */
+.dateSub.empty{
+  display: none;             /* hilangkan slot keterangan */
+}
     /* angka kolom */
     .amt{
       font-weight: 950;
